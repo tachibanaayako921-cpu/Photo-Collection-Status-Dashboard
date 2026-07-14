@@ -422,24 +422,32 @@
     });
   }
 
-  // ========== GASデータ保存 ==========
-  function saveToGAS(callback) {
-    setSyncStatus('syncing', '保存中...');
-    jsonpRequest({
-      action : 'save',
-      items  : JSON.stringify(items)
-    }, function(json) {
-      if (json.status === 'ok') {
-        setSyncStatus('synced');
-        updateLastUpdated();
-        if (callback) callback(true);
-      } else {
-        setSyncStatus('error', '保存エラー');
-        alert('⚠ 保存エラー：' + json.message);
-        if (callback) callback(false);
-      }
-    });
-  }
+  // ========== GASデータ保存（POST通信）==========
+function saveToGAS(callback) {
+  setSyncStatus('syncing', '保存中...');
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'save',
+      items:  items
+    }),
+    mode: 'no-cors'  // CORSを回避
+  })
+  .then(function() {
+    // no-corsの場合レスポンスが読めないので成功とみなす
+    setSyncStatus('synced');
+    updateLastUpdated();
+    if (callback) callback(true);
+  })
+  .catch(function(err) {
+    setSyncStatus('error', '保存エラー');
+    alert('⚠ 保存エラー：' + err.message);
+    if (callback) callback(false);
+  });
+}
+
 
   function updateLastUpdated() {
     var n = new Date();
