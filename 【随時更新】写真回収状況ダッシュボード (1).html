@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>写真回収状況ダッシュボード</title>
+  <script src="https://aiboard.sateraitoai.jp/script/tailwindcss.js"></script>
+  <script src="https://aiboard.sateraitoai.jp/script/chart.js"></script>
+  <script src="https://aiboard.sateraitoai.jp/script/chartjs-plugin-datalabels.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; height:100%; font-family:'Meiryo','MS Gothic',sans-serif; background:#f0f4f8; font-size:12px; }
+    body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .card { background:white; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.active { display:flex; }
+    .modal { background:white; border-radius:14px; padding:22px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+    input[type=text],input[type=number],select,textarea { border:1px solid #d1d5db; border-radius:6px; padding:5px 8px; width:100%; font-size:12px; outline:none; transition:border 0.2s; }
+    input:focus,select:focus,textarea:focus { border-color:#2196f3; }
+    .btn { border-radius:7px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; transition:opacity 0.2s; border:none; display:inline-flex; align-items:center; gap:3px; }
+    .btn:hover { opacity:0.85; }
+    .btn-primary { background:#2196f3; color:white; }
+    .btn-success { background:#4caf50; color:white; }
+    .btn-danger  { background:#f44336; color:white; }
+    .btn-gray    { background:#e0e0e0; color:#555; }
+    .btn-orange  { background:#ff9800; color:white; }
+    .btn-purple  { background:#7e57c2; color:white; }
+    .tab-btn { padding:5px 16px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:none; transition:all 0.2s; }
+    .tab-btn.active { background:#2196f3; color:white; }
+    .tab-btn:not(.active) { background:#e8edf2; color:#555; }
+    .drop-zone { border:3px dashed #90caf9; border-radius:10px; padding:20px; text-align:center; background:#f8fbff; transition:all 0.2s; cursor:pointer; }
+    .drop-zone.dragover { border-color:#2196f3; background:#e3f2fd; }
+    .badge-ok  { background:#e8f5e9; color:#2e7d32; padding:2px 7px; border-radius:20px; font-size:11px; font-weight:600; }
+    .badge-err { background:#ffebee; color:#c62828; padding:2px 7px; border-radius:20px; font-size:11px; font-weight:600; }
+    .preview-table { width:100%; border-collapse:collapse; font-size:11px; }
+    .preview-table th { background:#f5f5f5; padding:4px 7px; border:1px solid #e0e0e0; position:sticky; top:0; }
+    .preview-table td { padding:3px 7px; border:1px solid #f0f0f0; }
+    .item-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .item-table th { background:#f0f4f8; padding:7px 9px; border-bottom:2px solid #e0e0e0; text-align:left; font-weight:600; color:#555; white-space:nowrap; }
+    .item-table td { padding:6px 9px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+    .item-table tr:hover td { background:#f8fbff; }
+    .supplier-group-row { background:#e8f0fe; cursor:pointer; user-select:none; }
+    .supplier-group-row:hover { background:#d2e3fc; }
+    .supplier-group-row td { font-weight:700; padding:7px 9px; }
+    .collapse-btn { font-size:14px; display:inline-block; transition:transform 0.2s; }
+    .collapsed .collapse-btn { transform:rotate(-90deg); }
+    .status-select { border:1px solid #e0e0e0; border-radius:5px; padding:2px 5px; font-size:11px; width:auto; cursor:pointer; }
+    .status-select:disabled { opacity:0.5; cursor:not-allowed; background:#f5f5f5; }
+    #lockBanner { flex:0 0 auto; padding:4px 14px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff3e0; border-bottom:2px solid #ffb300; color:#e65100; }
+    #lockBanner.unlocked { background:#e8f5e9; border-bottom:2px solid #4caf50; color:#2e7d32; }
+    #header { flex:0 0 auto; padding:6px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
+    #tabbar { flex:0 0 auto; padding:4px 12px; display:flex; gap:6px; align-items:center; }
+    #main-content { flex:1 1 0; overflow:hidden; padding:0 12px 8px 12px; }
+    #dashboard-grid { height:100%; display:grid; grid-template-rows: auto 1fr 1fr; grid-template-columns: 1fr 1fr; gap:8px; }
+    .kpi-row { grid-column:1 / 3; display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+    .chart-card { overflow:hidden; display:flex; flex-direction:column; }
+    .chart-card h2 { flex:0 0 auto; font-size:12px; font-weight:700; color:#555; padding:8px 10px 4px 10px; margin:0; }
+    .chart-wrapper { flex:1 1 0; position:relative; min-height:0; padding:0 8px 6px 8px; }
+    #tab-items { height:100%; display:flex; flex-direction:column; }
+    .items-toolbar { flex:0 0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding-bottom:6px; }
+    .items-table-wrap { flex:1 1 0; overflow-y:auto; border:1px solid #e8edf2; border-radius:8px; }
+    .kpi-card { padding:8px 12px; border-radius:9px; display:flex; flex-direction:column; justify-content:center; }
+    .kpi-bar { height:5px; border-radius:3px; background:#e0e0e0; margin-top:5px; }
+    .kpi-bar-inner { height:5px; border-radius:3px; transition:width 0.4s; }
+    .badge-req   { background:#e3f2fd; color:#1565c0; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .badge-noreq { background:#f5f5f5; color:#999;    padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+    /* ロック時の編集ボタン無効スタイル */
+    .btn-locked { opacity:0.35; cursor:not-allowed !important; pointer-events:none; }
+    .req-btn-locked { opacity:0.35; cursor:not-allowed !important; pointer-events:none; }
+    .pw-modal { background:white; border-radius:14px; padding:28px; width:340px; box-shadow:0 8px 32px rgba(0,0,0,0.2); text-align:center; }
+  </style>
+</head>
+<body>
+
+<!-- ロックバナー -->
+<div id="lockBanner">
+  <span id="lockStatus">🔒 閲覧モード（編集にはパスワードが必要です）</span>
+  <div style="display:flex;gap:6px;">
+    <button class="btn btn-orange" style="padding:3px 10px;font-size:11px;" onclick="openPwModal()" id="unlockBtn">🔑 編集ロック解除</button>
+    <button class="btn btn-gray"   style="padding:3px 10px;font-size:11px;display:none;" onclick="lockEdit()" id="lockBtn">🔒 編集ロック</button>
+  </div>
+</div>
+
+<div id="header" class="card" style="margin:8px 8px 0 8px;border-radius:10px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:18px;font-weight:800;color:#1a237e;">📷 写真回収状況ダッシュボード</span>
+    <span id="lastUpdated" class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;"></span>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+    <button id="btn-import"   class="btn btn-orange btn-locked"  onclick="requireEdit(openImportModal)">📂 インポート</button>
+    <button id="btn-add"      class="btn btn-primary btn-locked" onclick="requireEdit(openAddItemModal)">＋ 追加</button>
+    <button class="btn btn-gray"   onclick="exportCSV()">📥 CSV出力</button>
+    <button class="btn btn-purple" onclick="downloadTemplate()">📋 テンプレDL</button>
+  </div>
+</div>
+
+<div id="tabbar">
+  <button class="tab-btn active" onclick="switchTab('dashboard',this)">📊 ダッシュボード</button>
+  <button class="tab-btn" onclick="switchTab('items',this)">📋 アイテム一覧・編集</button>
+</div>
+
+<div id="main-content">
+  <!-- ダッシュボード -->
+  <div id="tab-dashboard" style="height:100%;">
+    <div id="dashboard-grid">
+      <div class="kpi-row" id="kpiCards"></div>
+      <div class="card chart-card">
+        <h2>📊 全体回収状況</h2>
+        <div class="chart-wrapper"><canvas id="pieChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h2>📁 対象種別ごとの回収状況</h2>
+        <div class="chart-wrapper"><canvas id="categoryBar"></canvas></div>
+      </div>
+      <div class="card chart-card" style="grid-column:1/3;">
+        <h2>🏭 サプライヤ別 回収状況（未回収件数順・上位15件）</h2>
+        <div class="chart-wrapper"><canvas id="supplierBar"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- アイテム一覧 -->
+  <div id="tab-items" style="display:none;">
+    <div class="card" style="height:100%;padding:10px;display:flex;flex-direction:column;">
+      <div class="items-toolbar">
+        <span style="font-weight:700;color:#555;">📋 アイテム一覧</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="searchBox" placeholder="🔍 キーワード検索" style="width:160px;" oninput="renderItems()">
+          <select id="filterCat" onchange="renderItems()" style="width:90px;">
+            <option value="">全区分</option>
+            <option value="機器">機器</option>
+            <option value="付属品">付属品</option>
+            <option value="その他">その他</option>
+          </select>
+          <select id="filterStatus" onchange="renderItems()" style="width:100px;">
+            <option value="">全ステータス</option>
+            <option value="回収済">回収済</option>
+            <option value="回収不要">回収不要</option>
+            <option value="未回収">未回収</option>
+          </select>
+          <select id="filterReq" onchange="renderItems()" style="width:110px;">
+            <option value="">全送付状況</option>
+            <option value="1">送付依頼済</option>
+            <option value="0">未依頼</option>
+          </select>
+          <button class="btn btn-gray" style="padding:4px 10px;" onclick="expandAll()">全展開</button>
+          <button class="btn btn-gray" style="padding:4px 10px;" onclick="collapseAll()">全折畳</button>
+        </div>
+      </div>
+      <div class="items-table-wrap">
+        <table class="item-table" id="itemTable">
+          <thead>
+            <tr>
+              <th style="width:24px;"></th>
+              <th>サプライヤ / 機器名称</th>
+              <th>アイテム名</th>
+              <th>区分</th>
+              <th style="width:110px;">ステータス</th>
+              <th style="width:110px;">送付依頼</th>
+              <th style="width:80px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="itemTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- アイテム追加/編集モーダル -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal" style="width:480px;">
+    <h2 style="font-size:15px;font-weight:800;color:#1a237e;margin-bottom:14px;" id="itemModalTitle">アイテム追加</h2>
+    <input type="hidden" id="itemEditIndex">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#666;">サプライヤ名 <span style="color:#f44336;">*</span></label>
+        <input type="text" id="iSupplier" list="supplierList" placeholder="例：光南溶工" style="margin-top:3px;">
+        <datalist id="supplierList"></datalist>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#666;">区分 <span style="color:#f44336;">*</span></label>
+        <select id="iCat" style="margin-top:3px;">
+          <option value="機器">機器</option>
+          <option value="付属品">付属品</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:#666;">機器名称</label>
+      <input type="text" id="iDevice" list="deviceList" placeholder="例：送風機、ポンプ など" style="margin-top:3px;">
+      <datalist id="deviceList"></datalist>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:#666;">アイテム名 <span style="color:#f44336;">*</span></label>
+      <input type="text" id="iItem" placeholder="例：本体、制御盤 など" style="margin-top:3px;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:#666;">ステータス</label>
+      <div style="display:flex;gap:14px;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iStatus" value="未回収" checked> <span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">❌ 未回収</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iStatus" value="回収済"> <span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">✅ 回収済</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iStatus" value="回収不要"> <span style="background:#f5f5f5;color:#757575;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">⬜ 回収不要</span></label>
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:#666;">送付依頼</label>
+      <div style="display:flex;gap:14px;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iReq" value="0" checked> <span style="background:#f5f5f5;color:#999;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📭 未依頼</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iReq" value="1"> <span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📨 送付依頼済</span></label>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;font-weight:600;color:#666;">備考</label>
+      <textarea id="iNote" rows="2" placeholder="任意メモ" style="margin-top:3px;resize:vertical;"></textarea>
+    </div>
+    <div id="itemModalError" style="color:#f44336;font-size:12px;margin-bottom:8px;display:none;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-gray" onclick="closeItemModal()">キャンセル</button>
+      <button class="btn btn-success" onclick="saveItem()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="width:340px;">
+    <h2 style="font-size:15px;font-weight:800;color:#b71c1c;margin-bottom:8px;">🗑️ 削除の確認</h2>
+    <p style="font-size:12px;color:#555;margin-bottom:16px;"><strong id="deleteTargetName"></strong> を削除しますか？この操作は元に戻せません。</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-gray" onclick="closeDeleteModal()">キャンセル</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- インポートモーダル -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="width:640px;">
+    <h2 style="font-size:15px;font-weight:800;color:#1a237e;margin-bottom:4px;">📂 ファイルのインポート</h2>
+    <p style="font-size:11px;color:#999;margin-bottom:12px;">対応形式：<code style="background:#f5f5f5;padding:1px 4px;border-radius:3px;">.xlsx / .xls / .csv</code></p>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" style="margin-bottom:12px;">
+      <div style="font-size:30px;">📂</div>
+      <p style="font-size:13px;font-weight:700;color:#555;margin:4px 0 2px;">クリックまたはドラッグ＆ドロップ</p>
+      <p style="font-size:11px;color:#aaa;">.xlsx / .xls / .csv</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleFileSelect(event)">
+    </div>
+    <div id="sheetSelectArea" style="display:none;margin-bottom:10px;">
+      <label style="font-size:12px;font-weight:600;color:#555;">シートを選択</label>
+      <select id="sheetSelect" style="margin-top:4px;" onchange="onSheetChange()"></select>
+    </div>
+    <div id="mappingArea" style="display:none;background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:10px;">
+      <p style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">📌 列の対応付け</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div><label style="font-size:11px;color:#888;">サプライヤ名</label><select id="mapSupplier" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+        <div><label style="font-size:11px;color:#888;">区分</label><select id="mapCatI" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+        <div><label style="font-size:11px;color:#888;">機器名称</label><select id="mapDevice" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+        <div><label style="font-size:11px;color:#888;">アイテム名</label><select id="mapItem" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+        <div><label style="font-size:11px;color:#888;">ステータス</label><select id="mapStatus" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+        <div><label style="font-size:11px;color:#888;">送付依頼</label><select id="mapReq" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+        <div><label style="font-size:11px;color:#888;">備考</label><select id="mapNote" style="margin-top:2px;font-size:11px;padding:3px 5px;"></select></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:8px;padding:4px 12px;font-size:11px;" onclick="applyMapping()">✅ プレビュー更新</button>
+    </div>
+    <div id="previewArea" style="display:none;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <p style="font-size:12px;font-weight:700;color:#555;">👁 プレビュー（先頭5件）</p>
+        <span id="previewBadge"></span>
+      </div>
+      <div style="overflow-x:auto;max-height:160px;overflow-y:auto;border-radius:6px;border:1px solid #e0e0e0;">
+        <table class="preview-table" id="previewTable"></table>
+      </div>
+      <p id="importSummary" style="font-size:11px;color:#888;margin-top:4px;"></p>
+    </div>
+    <div id="importModeArea" style="display:none;margin-bottom:14px;">
+      <p style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px;">🔄 インポートモード</p>
+      <div style="display:flex;gap:20px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;"><input type="radio" name="importMode" value="merge" checked> <b>マージ</b>：既存に追加・上書き</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;"><input type="radio" name="importMode" value="replace"> <b>置換</b>：全データを入れ替え</label>
+      </div>
+    </div>
+    <div id="importError" style="color:#f44336;font-size:12px;margin-bottom:8px;display:none;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-gray" onclick="closeImportModal()">キャンセル</button>
+      <button class="btn btn-success" id="importBtn" style="display:none;" onclick="executeImport()">📥 インポート実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- パスワードモーダル -->
+<div class="modal-overlay" id="pwModal">
+  <div class="pw-modal">
+    <div style="font-size:40px;margin-bottom:8px;">🔑</div>
+    <h2 style="font-size:16px;font-weight:800;color:#1a237e;margin-bottom:6px;">編集パスワード</h2>
+    <p style="font-size:12px;color:#888;margin-bottom:16px;">編集権限のあるパスワードを入力してください</p>
+    <input type="password" id="pwInput" placeholder="パスワードを入力"
+      style="text-align:center;font-size:16px;letter-spacing:4px;margin-bottom:8px;"
+      onkeydown="if(event.key==='Enter')checkPassword()">
+    <div id="pwError" style="color:#f44336;font-size:12px;margin-bottom:8px;display:none;">
+      ⚠ パスワードが違います
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
+      <button class="btn btn-gray"    onclick="closePwModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="checkPassword()">🔓 解除する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  Chart.register(ChartDataLabels);
+
+  // ========== パスワード設定 ==========
+  var EDIT_PASSWORD = 'hyogohigashi'; // ← ここを変更してください
+  var SESSION_KEY   = 'photoApp_editUnlocked';
+  // =====================================
+
+  var STORAGE_KEY = 'photoCollection_items_v3';
+  var items = [];
+  var deleteTargetIndex = -1;
+  var collapsedGroups = {};
+  var pieChartInst = null, catBarInst = null, supBarInst = null;
+  var workbook = null, parsedRows = [], columnHeaders = [];
+  var isEditUnlocked = false;
+
+  // ========== ロック制御 ==========
+  function initLock() {
+    if (sessionStorage.getItem(SESSION_KEY) === '1') {
+      isEditUnlocked = true;
+    }
+    updateLockUI();
+  }
+
+  function openPwModal() {
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwError').style.display = 'none';
+    document.getElementById('pwModal').classList.add('active');
+    setTimeout(function(){ document.getElementById('pwInput').focus(); }, 100);
+  }
+  function closePwModal() {
+    document.getElementById('pwModal').classList.remove('active');
+  }
+  function checkPassword() {
+    if (document.getElementById('pwInput').value === EDIT_PASSWORD) {
+      isEditUnlocked = true;
+      sessionStorage.setItem(SESSION_KEY, '1');
+      updateLockUI();
+      closePwModal();
+      renderItems(); // テーブルのボタン状態を更新
+    } else {
+      document.getElementById('pwError').style.display = 'block';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  }
+  function lockEdit() {
+    isEditUnlocked = false;
+    sessionStorage.removeItem(SESSION_KEY);
+    updateLockUI();
+    renderItems(); // テーブルのボタン状態を更新
+  }
+
+  function updateLockUI() {
+    var banner    = document.getElementById('lockBanner');
+    var status    = document.getElementById('lockStatus');
+    var unlockBtn = document.getElementById('unlockBtn');
+    var lockBtn   = document.getElementById('lockBtn');
+    var btnImport = document.getElementById('btn-import');
+    var btnAdd    = document.getElementById('btn-add');
+
+    if (isEditUnlocked) {
+      // 解除済み
+      banner.classList.add('unlocked');
+      status.textContent = '🔓 編集モード（編集・追加・削除が可能です）';
+      unlockBtn.style.display = 'none';
+      lockBtn.style.display   = '';
+      btnImport.classList.remove('btn-locked');
+      btnAdd.classList.remove('btn-locked');
+    } else {
+      // ロック中
+      banner.classList.remove('unlocked');
+      status.textContent = '🔒 閲覧モード（編集にはパスワードが必要です）';
+      unlockBtn.style.display = '';
+      lockBtn.style.display   = 'none';
+      btnImport.classList.add('btn-locked');
+      btnAdd.classList.add('btn-locked');
+    }
+  }
+
+  // 編集操作が必要なアクションをラップ
+  function requireEdit(fn) {
+    if (isEditUnlocked) {
+      fn();
+    } else {
+      openPwModal();
+    }
+  }
+
+  // ========== CSV パーサー ==========
+  function parseCSVText(text) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    var rows = [];
+    var lines = text.split(/\r?\n/);
+    lines.forEach(function(line) {
+      if (line.trim() === '') return;
+      var cols = [], inQ = false, cur = '';
+      for (var i = 0; i < line.length; i++) {
+        var c = line[i];
+        if (inQ) {
+          if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+          else if (c === '"') { inQ = false; }
+          else { cur += c; }
+        } else {
+          if (c === '"') { inQ = true; }
+          else if (c === ',') { cols.push(cur); cur = ''; }
+          else { cur += c; }
+        }
+      }
+      cols.push(cur);
+      rows.push(cols);
+    });
+    return rows;
+  }
+
+  // ========== データ管理 ==========
+  var defaultItems = [
+    {supplier:'千代田興産',cat:'機器',device:'無停電電源装置',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'ラサ',cat:'機器',device:'脱水機棟No.1,2　脱水機棟洗浄排水移送ポンプ',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'ボルカノ',cat:'機器',device:'6号二次燃焼炉補助燃料装置',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'ボルカノ',cat:'機器',device:'5号,6号二次燃焼炉補助燃料装置',item:'燃焼用バーナ制御盤',status:'回収済',req:true,note:''},
+    {supplier:'北越',cat:'機器',device:'No1～5　空気圧縮機',item:'本体',status:'未回収',req:true,note:''},
+    {supplier:'北越',cat:'機器',device:'ジェットパック車用空気圧縮機',item:'本体',status:'未回収',req:true,note:''},
+    {supplier:'北越',cat:'機器',device:'ジェットパック車用空気槽',item:'本体',status:'未回収',req:true,note:''},
+    {supplier:'熱研産業',cat:'機器',device:'5号No.1 熱交換器',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'熱研産業',cat:'機器',device:'5号No.2熱交換器',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'熱研産業',cat:'機器',device:'5号No.3熱交換器',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'熱研産業',cat:'機器',device:'6号No.2熱交換器',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'広島メタル',cat:'機器',device:'No.1　汚泥脱水機',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'広島メタル',cat:'機器',device:'No.1汚泥脱水機制御盤',item:'部品',status:'未回収',req:false,note:''},
+    {supplier:'広島メタル',cat:'機器',device:'No.2　汚泥脱水機',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'広島メタル',cat:'機器',device:'No.2汚泥脱水機制御盤',item:'部品',status:'未回収',req:false,note:''},
+    {supplier:'広島メタル',cat:'機器',device:'No.3　汚泥脱水機',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'広島メタル',cat:'機器',device:'No.３汚泥脱水機制御盤',item:'部品',status:'未回収',req:false,note:''},
+    {supplier:'ニッコーテクノ',cat:'機器',device:'5号排ガススクラバー',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'ニッコーテクノ',cat:'機器',device:'5号排ガススクラバー',item:'ベンチュリー',status:'未回収',req:false,note:''},
+    {supplier:'ニッコーテクノ',cat:'機器',device:'5号排ガススクラバー',item:'煙突',status:'未回収',req:false,note:''},
+    {supplier:'ニッコーテクノ',cat:'機器',device:'6号排ガススクラバー',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'ニッコーテクノ',cat:'機器',device:'6号排ガススクラバー',item:'ベンチュリー',status:'未回収',req:false,note:''},
+    {supplier:'ニッコーテクノ',cat:'機器',device:'6号排ガススクラバー',item:'煙突',status:'未回収',req:false,note:''},
+    {supplier:'日機装',cat:'機器',device:'消泡剤注入ユニット',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'中尾鉄工',cat:'機器',device:'脱水設備点検用ホイスト',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'東洋ホイスト',cat:'機器',device:'脱水設備点検用ホイスト',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'常盤・日立',cat:'機器',device:'脱水機棟No.1,2　空気圧縮機',item:'本体',status:'回収不要',req:true,note:''},
+    {supplier:'常盤・日立',cat:'機器',device:'脱水機棟除湿器',item:'本体',status:'回収不要',req:true,note:''},
+    {supplier:'椿本興業',cat:'機器',device:'5号No.2 ケーキ供給コンベヤ',item:'本体',status:'未回収',req:true,note:''},
+    {supplier:'椿本興業',cat:'機器',device:'5号乾燥汚泥貯留ホッパ',item:'下部排出装置',status:'回収不要',req:true,note:''},
+    {supplier:'椿本興業',cat:'機器',device:'5号No.1炭化品搬送コンベヤ',item:'本体',status:'未回収',req:true,note:''},
+    {supplier:'椿本興業',cat:'機器',device:'5号－No.1炭化品養生ホッパ',item:'定量排出装置',status:'回収不要',req:true,note:''},
+    {supplier:'椿本興業',cat:'機器',device:'5号－No.2炭化品養生ホッパ',item:'定量排出装置',status:'回収不要',req:true,note:''},
+    {supplier:'椿本興業',cat:'機器',device:'6号No.2炭化品搬送コンベヤ',item:'本体',status:'未回収',req:true,note:''},
+    {supplier:'竹本',cat:'機器',device:'No.1～3 高分子引抜弁',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'竹本',cat:'機器',device:'5号No.1,2炭化炉',item:'冷却ファン',status:'未回収',req:false,note:''},
+    {supplier:'竹本',cat:'機器',device:'6号No.1,2炭化炉',item:'冷却ファン',status:'未回収',req:false,note:''},
+    {supplier:'大日化工',cat:'機器',device:'脱水機塔脱水用生物脱臭装置',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'大日化工',cat:'機器',device:'脱水機棟脱水用活性炭吸着塔',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'大日化工',cat:'機器',device:'5号,6号排ガススクラバー',item:'水銀吸着塔(燃料化）',status:'回収済',req:true,note:''},
+    {supplier:'大日化工',cat:'機器',device:'No1～3　脱臭ファン',item:'ミストセパレータ（脱臭ファン付属）',status:'回収済',req:true,note:''},
+    {supplier:'神鋼エアテック',cat:'機器',device:'No.1,2窒素発生装置',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'神鋼エアテック',cat:'機器',device:'ジェットパック車用窒素発生装置・窒素貯留槽',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'双日・荏原',cat:'機器',device:'No.1～4　消化汚泥供給ポンプ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'双日・荏原',cat:'機器',device:'No.1～4　高分子供給ポンプ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'双日・荏原',cat:'機器',device:'No.1～4　無機凝集剤供給ポンプ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'5号－No.1,2炭化品養生ホッパ',item:'No.1,2空気循環ファン',status:'未回収',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'5号白防空気ファン',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'6号白防空気ファン',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'5号,6号白防空気ファン',item:'吐出サイレンサー',status:'未回収',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'5号燃焼空気ファン',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'6号燃焼空気ファン',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'5号排ガス再循環ファン',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'昭和風力',cat:'機器',device:'6号排ガス再循環ファン',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'佐竹',cat:'機器',device:'脱水機棟No.1～3消化汚泥貯留槽撹拌機',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'佐竹',cat:'機器',device:'No.1～3 高分子溶解タンク',item:'撹拌機',status:'未回収',req:false,note:''},
+    {supplier:'佐竹',cat:'機器',device:'No.1,2　脱水分離液貯留槽撹拌機',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'側板1,2,3 底板 アニュラプレート',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'側板4,5',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'側板6,7',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'側板8,9 補強リング スカムボックス',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'側板10 トップアングル 中央引抜管[N-6]',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'屋根板 ラフター センターリング 撹拌機用座 ノズル類',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'側面 マンホール ノズル類',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.3消化槽',item:'越流ポット シールポット',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'側板1,2,3 底板 アニュラプレート',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'側板4,5',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'側板6,7',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'側板8,9 補強リング スカムボックス',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'側板10 トップアングル 中央引抜管[N-6]',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'ラフター センターリング 撹拌機用座 ノズル類',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'側面 マンホール ノズル類',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'屋根板',status:'回収済',req:true,note:''},
+    {supplier:'白石鉄工',cat:'機器',device:'No.4消化槽',item:'越流ポット シールポット',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'消泡剤注入ユニット',item:'制御盤',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'脱水機塔脱水用生物脱臭装置',item:'生物脱臭装置動力制御盤',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号No.1炭化炉',item:'動力制御盤(5LP-031)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号No.1,2炭化炉',item:'5号動力制御盤3(5LP-003)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号No.1,2炭化炉',item:'インバータ盤3(5LP-011)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号No.1,2炭化炉',item:'監視制御装置(5CLP-001)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号No.1,2炭化炉',item:'6号動力制御盤3(6LP-003)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号No.1,2炭化炉',item:'監視制御装置(6CLP-001)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号動力制御盤1 (5LP-001)',item:'5号動力制御盤1 (5LP-001)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号動力制御盤2 (5LP-002)',item:'5号動力制御盤2 (5LP-002)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号動力制御盤4 (5LP-004)',item:'5号動力制御盤4 (5LP-004)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号動力制御盤1 (6LP-001)',item:'6号動力制御盤1 (6LP-001)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号動力制御盤2 (6LP-002)',item:'6号動力制御盤2 (6LP-002)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号動力制御盤4 (6LP-004)',item:'6号動力制御盤4 (6LP-004)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'共通動力制御盤　(7LP-001)',item:'共通動力制御盤　(7LP-001)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'接地端子盤　(7ET-001)',item:'接地端子盤　(7ET-001)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号インバータ盤1 (5LP-111)',item:'5号インバータ盤1 (5LP-111)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号インバータ盤2 (5LP-112)',item:'5号インバータ盤2 (5LP-112)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'5号インバータ盤4 (5LP-012)',item:'5号インバータ盤4 (5LP-012)',status:'回収不要',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号インバータ盤1 (6LP-111)',item:'6号インバータ盤1 (6LP-111)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号インバータ盤2 (6LP-112)',item:'6号インバータ盤2 (6LP-112)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号インバータ盤3 (6LP-011)',item:'6号インバータ盤3 (6LP-011)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'6号インバータ盤4 (6LP-012)',item:'6号インバータ盤4 (6LP-012)',status:'回収済',req:true,note:''},
+    {supplier:'アイベステクノ',cat:'機器',device:'共通インバータ盤　(7LP-011)',item:'共通インバータ盤　(7LP-011)',status:'回収済',req:true,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号－No.1,2乾燥汚泥供給ホッパ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号炭化品集合コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号炭化品集合コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号-No.1-1,2炭化品冷却コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号-No.1-1,2炭化品冷却コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号－No.1,2炭化品養生ホッパ',item:'1回目',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号－No.1,2炭化品養生ホッパ',item:'2回目',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号－No.1,2炭化品養生ホッパ',item:'3回目',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号－No.1,2炭化品養生ホッパ',item:'1回目',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号－No.1,2炭化品養生ホッパ',item:'2回目',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号－No.1,2炭化品養生ホッパ',item:'3回目',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号－No.2-1,2炭化品冷却コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号－No.2-1,2炭化品冷却コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'5号No.2熱交換器',item:'ガス冷却器',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'6号No.2熱交換器',item:'ガス冷却器',status:'未回収',req:false,note:''},
+    {supplier:'光南溶工',cat:'機器',device:'No.2-1,2,3 熱交換器5号',item:'ガス冷却器',status:'未回収',req:false,note:''},
+    {supplier:'ソルテック工業',cat:'機器',device:'5号No.1炭化炉',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'ソルテック工業',cat:'機器',device:'5号No.2炭化炉',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'フジケンエンジ',cat:'機器',device:'No.1～3 高分子溶解タンク',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'フジケンエンジ',cat:'機器',device:'No.1炭化品貯留ホッパ',item:'本体',status:'回収済',req:true,note:''},
+    {supplier:'アクト',cat:'機器',device:'5号No.1ケーキ切替コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'アクト',cat:'機器',device:'6号No.1ケーキ切替コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'アクト',cat:'機器',device:'5号No.1ケーキ供給コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'アクト',cat:'機器',device:'6号No.1ケーキ供給コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'アクト',cat:'機器',device:'5号No.1炭化品振分コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'アクト',cat:'機器',device:'No.2炭化品振分コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'アクト',cat:'機器',device:'No.1炭化品貯留ホッパ',item:'排出スクリュー',status:'未回収',req:false,note:''},
+    {supplier:'アンレット',cat:'機器',device:'No.1～2　消化ガス昇圧ブロワ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'関西日立',cat:'機器',device:'5号冷却装置',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'関西日立',cat:'機器',device:'5号冷却装置',item:'冷媒タンク',status:'未回収',req:false,note:''},
+    {supplier:'関西日立',cat:'機器',device:'5号冷却装置',item:'冷媒ポンプ',status:'未回収',req:false,note:''},
+    {supplier:'関西日立',cat:'機器',device:'6号冷却装置',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'関西日立',cat:'機器',device:'6号冷却装置',item:'冷媒タンク',status:'未回収',req:false,note:''},
+    {supplier:'関西日立',cat:'機器',device:'6号冷却装置',item:'冷媒ポンプ',status:'未回収',req:false,note:''},
+    {supplier:'大岩',cat:'機器',device:'No.1～2温水循環ポンプ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'川本',cat:'機器',device:'脱水機棟給水ユニット',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'指月',cat:'付属品',device:'5号，6号－No.1,2炭化炉',item:'高調波抑制装置',status:'未回収',req:false,note:''},
+    {supplier:'三井物産',cat:'付属品',device:'5号,6号排ガススクラバー',item:'非常用排水槽',status:'未回収',req:false,note:''},
+    {supplier:'日東化工',cat:'付属品',device:'5号,6号誘引ファン',item:'ミストセパレータ',status:'未回収',req:false,note:''},
+    {supplier:'日東化工',cat:'付属品',device:'No1～3　脱臭ファン',item:'ミストセパレータ 5号燃焼空気ファン用',status:'未回収',req:false,note:''},
+    {supplier:'日東化工',cat:'付属品',device:'No1～3　脱臭ファン',item:'ミストセパレータ 6号燃焼空気ファン用',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号乾燥汚泥貯留ホッパ',item:'臭気遮断ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号－No.1,2炭化品養生ホッパ',item:'入口/出口スライドゲート',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'No.1,2炭化品養生ホッパ',item:'養生加湿器',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'No.1,2炭化品養生ホッパ',item:'養生空気循環ファン',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号No.2熱交換器',item:'調節ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号No.2熱交換器',item:'排ガス調節ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'6号No.2熱交換器',item:'排ガス調節ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'No.2-1,2,3 熱交換器5号',item:'循環排ガス調節ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号No.3熱交換器',item:'排ガス遮断ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号,6号白防空気ファン',item:'調節ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号,6号燃焼空気ファン',item:'入口遮断ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号,6号排ガス再循環ファン',item:'入口遮断ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'日本バルブ',cat:'付属品',device:'5号,6号排ガススクラバー',item:'水銀吸着塔(遮断ダンパ)',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'5号No.1,2炭化炉',item:'出口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'5号炭化品集合コンベヤ',item:'出口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'6号炭化品集合コンベヤ',item:'出口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'5号No.1炭化品搬送コンベヤ',item:'出口振分ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'5号－No.1,2炭化品養生ホッパ',item:'入口・出口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'5号No.2炭化品搬送コンベヤ',item:'出口振分ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'6号No.2炭化品搬送コンベヤ',item:'出口振分ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'No.1炭化品貯留ホッパ',item:'入口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'No.1炭化品貯留ホッパ',item:'バグフィルタ出口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'No.3炭化品貯留ホッパ',item:'バグフィルタ出口二重ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'フェロー',cat:'付属品',device:'5号、6号二次燃焼炉',item:'調節ダンパ、遮断ダンパ',status:'未回収',req:false,note:''},
+    {supplier:'酉島',cat:'付属品',device:'5号、6号ケーキ計量コンベヤ',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'新倉',cat:'付属品',device:'No.3~4消化槽',item:'安全弁',status:'未回収',req:false,note:''},
+    {supplier:'中和機械',cat:'付属品',device:'5号No.1,2炭化炉',item:'入口ロータリーバルブ',status:'未回収',req:false,note:''},
+    {supplier:'中和機械',cat:'付属品',device:'6号No.1,2炭化炉',item:'入口ロータリーバルブ',status:'未回収',req:false,note:''},
+    {supplier:'中和機械',cat:'付属品',device:'No.1炭化品貯留ホッパ',item:'ロータリーバルブ',status:'未回収',req:false,note:''},
+    {supplier:'中和機械',cat:'付属品',device:'No.3炭化品貯留ホッパ',item:'ロータリーバルブ',status:'未回収',req:false,note:''},
+    {supplier:'俊機',cat:'付属品',device:'No.1～No.4消化ガス脱硫装置',item:'脱硫設備吊上装置',status:'未回収',req:false,note:''},
+    {supplier:'俊機',cat:'付属品',device:'No.1～2シロキサン除去装置（消化）',item:'シロキサン除去設備吊上装置',status:'未回収',req:false,note:''},
+    {supplier:'三社',cat:'付属品',device:'5号，6号－No.1,2炭化炉',item:'直流電源装置',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'5号－No.1,2炭化品養生ホッパ',item:'養生空気加湿器',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'5号－No.1,2炭化品養生ホッパ',item:'No.1-1/1-2養生空気加湿器バルブユニット',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'5号－No.1,2炭化品養生ホッパ',item:'No.2-1/2-2養生空気加湿器バルブユニット',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'5号－No.1,2炭化品養生ホッパ',item:'養生空気加湿器（ダクトヒーター）',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'6号－No.1,2炭化品養生ホッパ',item:'養生空気加湿器',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'6号－No.1,2炭化品養生ホッパ',item:'No.1-1/1-2養生空気加湿器バルブユニット',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'6号－No.1,2炭化品養生ホッパ',item:'No.2-1/2-2養生空気加湿器バルブユニット',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'6号－No.1,2炭化品養生ホッパ',item:'養生空気加湿器（ダクトヒーター）',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'6号－No.1,2炭化品養生ホッパ',item:'養生空気加湿器（ダクトヒーター）②',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'No.2-1,2,3 熱交換器5号',item:'ガス冷却器(スプレーノズル)',status:'未回収',req:false,note:''},
+    {supplier:'いけうち',cat:'付属品',device:'No.2-1,2,3 熱交換器6号',item:'ガス冷却器(スプレーノズル)',status:'未回収',req:false,note:''},
+    {supplier:'赤武エンジ',cat:'付属品',device:'5号乾燥汚泥空気移送装置',item:'移送空気冷却器',status:'未回収',req:false,note:''},
+    {supplier:'赤武エンジ',cat:'付属品',device:'6号乾燥汚泥空気移送装置',item:'移送空気冷却器',status:'未回収',req:false,note:''},
+    {supplier:'アマノ',cat:'付属品',device:'No.1炭化品貯留ホッパ',item:'除塵装置',status:'未回収',req:false,note:''},
+    {supplier:'アマノ',cat:'付属品',device:'No.2炭化品貯留ホッパ',item:'除塵装置',status:'未回収',req:false,note:''},
+    {supplier:'アマノ',cat:'付属品',device:'No.3炭化品貯留ホッパ',item:'除塵装置',status:'未回収',req:false,note:''},
+    {supplier:'永光',cat:'付属品',device:'No.1炭化品貯留ホッパ',item:'簡易脱臭装置',status:'未回収',req:false,note:''},
+    {supplier:'ｴｰｾﾞｺﾞﾑ',cat:'付属品',device:'消泡剤注入ユニット',item:'消泡剤貯留タンク',status:'未回収',req:false,note:''},
+    {supplier:'ｴｰｾﾞｺﾞﾑ',cat:'付属品',device:'脱水機塔脱水用生物脱臭装置',item:'生物脱臭用散水タンク',status:'未回収',req:false,note:''},
+    {supplier:'岡崎製作所',cat:'付属品',device:'5号No.1,2炭化炉',item:'出口二重ダンパ(ヒータ)',status:'未回収',req:false,note:''},
+    {supplier:'岡崎製作所',cat:'付属品',device:'6号No.1,2炭化炉',item:'乾溜ガスダクトヒータ',status:'未回収',req:false,note:''},
+    {supplier:'岡崎製作所',cat:'付属品',device:'6号No.1,2炭化炉',item:'出口シュート・ゲートヒータ',status:'未回収',req:false,note:''},
+    {supplier:'岡野商事',cat:'付属品',device:'6号No.1,2炭化炉',item:'エアシャワー室',status:'未回収',req:false,note:''},
+    {supplier:'IHARA',cat:'その他',device:'5号ガス冷却器',item:'5号ガス冷却器(耐火物)',status:'回収不要',req:false,note:''},
+    {supplier:'IHARA',cat:'その他',device:'6号ガス冷却器',item:'6号ガス冷却器(耐火物)',status:'回収不要',req:false,note:''},
+    {supplier:'JFEアド',cat:'その他',device:'5号ケーキ計量コンベヤ',item:'ケーキ計量コンベヤ用ベルトウェア',status:'回収不要',req:false,note:''},
+    {supplier:'JFEアド',cat:'その他',device:'6号ケーキ計量コンベヤ',item:'ケーキ計量コンベヤ用ベルトウェア',status:'回収不要',req:false,note:''},
+    {supplier:'JFEアド',cat:'その他',device:'重量計 その1',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'5号煙突',item:'塩素濃度計、ばいじん計',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'5号ピトー管、フランジタップ式オリフィス　その1',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'フランジタップ式オリフィス　その2',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'6号フランジタップ式オリフィスその3',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'6号フランジタップ式オリフィスその4',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'ガス分析計その1 (燃料化)',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'ガス分析計その1',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'ガス分析計その2',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'ケイディエス',cat:'その他',device:'6号ピトー管その2',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'東洋計器',cat:'その他',device:'汚泥消化設備棟No.1～2　計装用空気圧縮機',item:'圧力スイッチ',status:'回収不要',req:false,note:''},
+    {supplier:'東洋計器',cat:'その他',device:'脱水機棟No.1,2空気圧縮機',item:'圧力スイッチ',status:'回収不要',req:false,note:''},
+    {supplier:'西川計測',cat:'その他',device:'電磁流量計',item:'部品',status:'回収不要',req:false,note:''},
+    {supplier:'西川計測',cat:'その他',device:'流量計、レベル計、圧力計',item:'部品',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'消泡剤注入ユニット',item:'消泡剤貯留槽液位計',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'5号，6号－No.1,2炭化炉',item:'温度計(熱電対)',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'5号，6号－No.1,2炭化炉',item:'感震器',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'5号－No.2-1,2炭化品冷却コンベヤ',item:'No.1-1炭化品冷却コンベヤレベル計',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'含水率計',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'レベルスイッチ',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'振動式レベルスイッチ',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'6号ガス検知器(その2)',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'圧力・温度指示計その1',item:'本体',status:'回収不要',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'圧力・温度指示計その2',item:'本体',status:'未回収',req:false,note:''},
+    {supplier:'メルテック',cat:'その他',device:'回転数計',item:'本体',status:'回収不要',req:false,note:''},
+  ];
+
+  function loadData() {
+    var s = localStorage.getItem(STORAGE_KEY);
+    if (s) {
+      try {
+        var parsed = JSON.parse(s);
+        items = parsed.map(function(d){ if(d.req===undefined)d.req=false; return d; });
+      } catch(e) { items = defaultItems.slice(); }
+    } else {
+      items = defaultItems.slice();
+    }
+  }
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    var n = new Date();
+    document.getElementById('lastUpdated').textContent =
+      '最終更新：'+n.getFullYear()+'/'+(n.getMonth()+1)+'/'+n.getDate()+
+      ' '+n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
+  }
+
+  function calcTotals() {
+    var done=0,noNeed=0,notYet=0,reqCount=0;
+    items.forEach(function(d){
+      if(d.status==='回収済')done++;
+      else if(d.status==='回収不要')noNeed++;
+      else notYet++;
+      if(d.req)reqCount++;
+    });
+    var total=done+noNeed+notYet;
+    return{done:done,noNeed:noNeed,notYet:notYet,total:total,reqCount:reqCount,
+           rate:total>0?Math.round((done+noNeed)/total*100):0};
+  }
+  function calcSupplierTotals(){
+    var map={};
+    items.forEach(function(d){
+      if(!map[d.supplier])map[d.supplier]={supplier:d.supplier,done:0,noNeed:0,notYet:0};
+      if(d.status==='回収済')map[d.supplier].done++;
+      else if(d.status==='回収不要')map[d.supplier].noNeed++;
+      else map[d.supplier].notYet++;
+    });
+    return Object.values(map);
+  }
+
+  // ========== KPI ==========
+  function renderKPI(){
+    var t=calcTotals();
+    document.getElementById('kpiCards').innerHTML=
+      kpiCard('#4caf50','✅ 回収済',t.done,t.total)+
+      kpiCard('#9e9e9e','⬜ 回収不要',t.noNeed,t.total)+
+      kpiCard('#f44336','❌ 未回収',t.notYet,t.total)+
+      kpiCardRate(t.rate,t.done,t.noNeed,t.total)+
+      kpiCard('#1565c0','📨 送付依頼済',t.reqCount,t.total);
+  }
+  function kpiCard(c,label,v,total){
+    var pct=total>0?(v/total*100).toFixed(1):0;
+    return '<div class="card kpi-card" style="border-left:4px solid '+c+';"><p style="font-size:11px;color:#888;margin:0 0 2px;">'+label+'</p><p style="font-size:22px;font-weight:800;color:'+c+';margin:0;line-height:1.2;">'+v+'<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:2px;">件</span></p><div class="kpi-bar"><div class="kpi-bar-inner" style="background:'+c+';width:'+pct+'%;"></div></div><p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+pct+'%</p></div>';
+  }
+  function kpiCardRate(rate,done,noNeed,total){
+    return '<div class="card kpi-card" style="border-left:4px solid #2196f3;"><p style="font-size:11px;color:#888;margin:0 0 2px;">📊 回収率</p><p style="font-size:22px;font-weight:800;color:#2196f3;margin:0;line-height:1.2;">'+rate+'<span style="font-size:13px;font-weight:700;">%</span></p><div class="kpi-bar"><div class="kpi-bar-inner" style="background:#2196f3;width:'+rate+'%;"></div></div><p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+(done+noNeed)+'/'+total+'件（不要含む）</p></div>';
+  }
+
+  // ========== チャート ==========
+  var chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:400}};
+  function renderCharts(){
+    var t=calcTotals();
+    if(pieChartInst)pieChartInst.destroy();
+    pieChartInst=new Chart(document.getElementById('pieChart').getContext('2d'),{
+      type:'doughnut',
+      data:{labels:['回収済 '+t.done+'件','回収不要 '+t.noNeed+'件','未回収 '+t.notYet+'件'],
+            datasets:[{data:[t.done,t.noNeed,t.notYet],backgroundColor:['#4caf50','#9e9e9e','#f44336'],borderWidth:2,borderColor:'#fff'}]},
+      options:Object.assign({},chartDefaults,{plugins:{
+        legend:{position:'bottom',labels:{font:{size:10},padding:8,boxWidth:12}},
+        datalabels:{color:'#fff',font:{weight:'bold',size:10},formatter:function(v){
+          if(!v)return'';return v+'件\n'+(t.total>0?(v/t.total*100).toFixed(0):0)+'%';
+        }}
+      }})
+    });
+    var cats=['機器','付属品','その他'],cD=[0,0,0],cN=[0,0,0],cY=[0,0,0];
+    items.forEach(function(d){var i=cats.indexOf(d.cat);if(i<0)return;if(d.status==='回収済')cD[i]++;else if(d.status==='回収不要')cN[i]++;else cY[i]++;});
+    if(catBarInst)catBarInst.destroy();
+    catBarInst=new Chart(document.getElementById('categoryBar').getContext('2d'),{
+      type:'bar',
+      data:{labels:cats,datasets:[{label:'回収済',data:cD,backgroundColor:'#4caf50'},{label:'回収不要',data:cN,backgroundColor:'#9e9e9e'},{label:'未回収',data:cY,backgroundColor:'#f44336'}]},
+      options:Object.assign({},chartDefaults,{
+        scales:{x:{stacked:true,ticks:{font:{size:10}}},y:{stacked:true,beginAtZero:true,ticks:{font:{size:10}}}},
+        plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8,boxWidth:12}},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:function(v){return v>0?v:'';}}}
+      })
+    });
+    var supList=calcSupplierTotals().sort(function(a,b){return b.notYet-a.notYet;});
+    var top=supList.filter(function(d){return d.notYet>0;}).slice(0,15);
+    if(supBarInst)supBarInst.destroy();
+    supBarInst=new Chart(document.getElementById('supplierBar').getContext('2d'),{
+      type:'bar',
+      data:{labels:top.map(function(d){return d.supplier;}),
+            datasets:[{label:'回収済',data:top.map(function(d){return d.done;}),backgroundColor:'#4caf50'},
+                      {label:'回収不要',data:top.map(function(d){return d.noNeed;}),backgroundColor:'#9e9e9e'},
+                      {label:'未回収',data:top.map(function(d){return d.notYet;}),backgroundColor:'#f44336'}]},
+      options:Object.assign({},chartDefaults,{
+        indexAxis:'y',
+        scales:{x:{stacked:true,beginAtZero:true,ticks:{font:{size:9}}},y:{stacked:true,ticks:{font:{size:9}}}},
+        plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8,boxWidth:12}},datalabels:{color:'#fff',font:{size:9,weight:'bold'},formatter:function(v){return v>0?v:'';}}}
+      })
+    });
+  }
+
+  // ========== アイテム一覧 ==========
+  function renderItems(){
+    var search=(document.getElementById('searchBox').value||'').toLowerCase();
+    var fCat   =document.getElementById('filterCat').value;
+    var fStatus=document.getElementById('filterStatus').value;
+    var fReq   =document.getElementById('filterReq').value;
+    var filtered=items.filter(function(d,i){
+      d._origIdx=i;
+      if(fCat    &&d.cat   !==fCat)   return false;
+      if(fStatus &&d.status!==fStatus) return false;
+      if(fReq==='1'&&!d.req) return false;
+      if(fReq==='0'&& d.req) return false;
+      if(search&&(d.supplier+d.device+d.item+d.note).toLowerCase().indexOf(search)<0)return false;
+      return true;
+    });
+    var groups={},groupOrder=[];
+    filtered.forEach(function(d){
+      if(!groups[d.supplier]){groups[d.supplier]=[];groupOrder.push(d.supplier);}
+      groups[d.supplier].push(d);
+    });
+    var tbody=document.getElementById('itemTableBody');
+    tbody.innerHTML='';
+    if(groupOrder.length===0){
+      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:#999;">該当するデータがありません</td></tr>';
+      return;
+    }
+    groupOrder.forEach(function(supplier){
+      var gItems =groups[supplier];
+      var gDone  =gItems.filter(function(d){return d.status==='回収済';}).length;
+      var gNoNeed=gItems.filter(function(d){return d.status==='回収不要';}).length;
+      var gNotYet=gItems.filter(function(d){return d.status==='未回収';}).length;
+      var gReq   =gItems.filter(function(d){return d.req;}).length;
+      var gTotal =gItems.length;
+      var gRate  =gTotal>0?Math.round((gDone+gNoNeed)/gTotal*100):0;
+      var cat    =gItems[0].cat;
+      var catColor=cat==='機器'?'background:#e3f2fd;color:#1565c0;':cat==='付属品'?'background:#f3e5f5;color:#6a1b9a;':'background:#fff3e0;color:#e65100;';
+      var isCol  =collapsedGroups[supplier];
+      var gtr=document.createElement('tr');
+      gtr.className='supplier-group-row'+(isCol?' collapsed':'');
+      gtr.innerHTML=
+        '<td style="text-align:center;"><span class="collapse-btn">▼</span></td>'+
+        '<td colspan="2">🏭 '+escHtml(supplier)+
+          ' <span style="font-size:10px;padding:1px 6px;border-radius:10px;'+catColor+'">'+cat+'</span>'+
+          ' <span style="font-size:10px;color:#888;">('+gTotal+'件)</span>'+
+        '</td><td></td>'+
+        '<td style="font-size:11px;">'+
+          '<span style="color:#4caf50;font-weight:700;">✅'+gDone+'</span> '+
+          '<span style="color:#9e9e9e;">⬜'+gNoNeed+'</span> '+
+          '<span style="color:#f44336;font-weight:700;">❌'+gNotYet+'</span> '+
+          '<span style="color:#2196f3;font-weight:700;margin-left:4px;">'+gRate+'%</span>'+
+        '</td>'+
+        '<td style="font-size:11px;"><span style="color:#1565c0;font-weight:700;">📨'+gReq+'/'+gTotal+'</span></td>'+
+        '<td></td>';
+      gtr.onclick=function(){toggleGroup(supplier);};
+      tbody.appendChild(gtr);
+
+      gItems.forEach(function(d){
+        var origIdx=d._origIdx;
+        var locked=!isEditUnlocked;
+        var itr=document.createElement('tr');
+        itr.style.display=isCol?'none':'';
+        itr.innerHTML=
+          '<td></td>'+
+          '<td style="padding-left:20px;color:#555;">'+
+            (d.device
+              ?'<span style="font-size:11px;background:#e8f0fe;color:#1a73e8;padding:1px 6px;border-radius:8px;">'+escHtml(d.device)+'</span>'
+              :'<span style="font-size:10px;color:#bbb;">（機器名なし）</span>')+
+          '</td>'+
+          '<td style="color:#333;">'+escHtml(d.item)+'</td>'+
+          '<td></td>'+
+          // ステータスセレクト：ロック時はdisabled
+          '<td>'+
+            '<select class="status-select" '+(locked?'disabled title="編集ロック中"':'')+' onchange="changeStatus('+origIdx+',this.value)">'+
+              '<option value="未回収"'+(d.status==='未回収'?' selected':'')+'>❌ 未回収</option>'+
+              '<option value="回収済"'+(d.status==='回収済'?' selected':'')+'>✅ 回収済</option>'+
+              '<option value="回収不要"'+(d.status==='回収不要'?' selected':'')+'>⬜ 回収不要</option>'+
+            '</select>'+
+          '</td>'+
+          // 送付依頼ボタン：ロック時はreq-btn-lockedクラス付与
+          '<td>'+
+            '<button onclick="'+(locked?'openPwModal()':'toggleReq('+origIdx+')')+'" '+
+              'class="'+(locked?'req-btn-locked':'')+'" '+
+              'style="border:none;background:none;cursor:'+(locked?'not-allowed':'pointer')+';padding:0;" '+
+              'title="'+(locked?'編集ロック中':'クリックで切替')+'">'+
+              (d.req
+                ?'<span class="badge-req">📨 送付依頼済</span>'
+                :'<span class="badge-noreq">📭 未依頼</span>')+
+            '</button>'+
+          '</td>'+
+          // 編集・削除ボタン：ロック時はbtn-locked
+          '<td style="white-space:nowrap;">'+
+            '<button class="btn btn-primary '+(locked?'btn-locked':'')+'" style="padding:2px 7px;font-size:10px;margin-right:2px;" '+
+              'onclick="'+(locked?'openPwModal()':'openEditItemModal('+origIdx+')')+'" title="'+(locked?'編集ロック中':'編集')+'">✏️</button>'+
+            '<button class="btn btn-danger '+(locked?'btn-locked':'')+'" style="padding:2px 7px;font-size:10px;" '+
+              'onclick="'+(locked?'openPwModal()':'openDeleteModal('+origIdx+')')+'" title="'+(locked?'編集ロック中':'削除')+'">🗑️</button>'+
+          '</td>';
+        tbody.appendChild(itr);
+      });
+    });
+  }
+
+  function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function toggleGroup(s){collapsedGroups[s]=!collapsedGroups[s];renderItems();}
+  function expandAll(){collapsedGroups={};renderItems();}
+  function collapseAll(){var g={};items.forEach(function(d){g[d.supplier]=true;});collapsedGroups=g;renderItems();}
+
+  function changeStatus(idx,val){
+    if(!isEditUnlocked){openPwModal();return;}
+    items[idx].status=val;saveData();renderKPI();renderCharts();
+  }
+  function toggleReq(idx){
+    if(!isEditUnlocked){openPwModal();return;}
+    items[idx].req=!items[idx].req;saveData();renderKPI();renderItems();
+  }
+
+  function refreshDataLists(){
+    var suppliers=[...new Set(items.map(function(d){return d.supplier;}))];
+    var devices=[...new Set(items.map(function(d){return d.device;}).filter(Boolean))];
+    document.getElementById('supplierList').innerHTML=suppliers.map(function(s){return'<option value="'+escHtml(s)+'">'+escHtml(s)+'</option>';}).join('');
+    document.getElementById('deviceList').innerHTML=devices.map(function(s){return'<option value="'+escHtml(s)+'">'+escHtml(s)+'</option>';}).join('');
+  }
+
+  // ========== アイテムモーダル ==========
+  function openAddItemModal(){
+    refreshDataLists();
+    document.getElementById('itemModalTitle').textContent='アイテム追加';
+    document.getElementById('itemEditIndex').value='-1';
+    document.getElementById('iSupplier').value='';
+    document.getElementById('iCat').value='機器';
+    document.getElementById('iDevice').value='';
+    document.getElementById('iItem').value='';
+    document.querySelector('input[name="iStatus"][value="未回収"]').checked=true;
+    document.querySelector('input[name="iReq"][value="0"]').checked=true;
+    document.getElementById('iNote').value='';
+    document.getElementById('itemModalError').style.display='none';
+    document.getElementById('itemModal').classList.add('active');
+  }
+  function openEditItemModal(idx){
+    refreshDataLists();
+    var d=items[idx];
+    document.getElementById('itemModalTitle').textContent='アイテム編集';
+    document.getElementById('itemEditIndex').value=idx;
+    document.getElementById('iSupplier').value=d.supplier;
+    document.getElementById('iCat').value=d.cat;
+    document.getElementById('iDevice').value=d.device||'';
+    document.getElementById('iItem').value=d.item;
+    document.querySelector('input[name="iStatus"][value="'+d.status+'"]').checked=true;
+    document.querySelector('input[name="iReq"][value="'+(d.req?'1':'0')+'"]').checked=true;
+    document.getElementById('iNote').value=d.note||'';
+    document.getElementById('itemModalError').style.display='none';
+    document.getElementById('itemModal').classList.add('active');
+  }
+  function closeItemModal(){document.getElementById('itemModal').classList.remove('active');}
+  function saveItem(){
+    var idx     =parseInt(document.getElementById('itemEditIndex').value);
+    var supplier=document.getElementById('iSupplier').value.trim();
+    var cat     =document.getElementById('iCat').value;
+    var device  =document.getElementById('iDevice').value.trim();
+    var item    =document.getElementById('iItem').value.trim();
+    var status  =document.querySelector('input[name="iStatus"]:checked').value;
+    var req     =document.querySelector('input[name="iReq"]:checked').value==='1';
+    var note    =document.getElementById('iNote').value.trim();
+    var errEl   =document.getElementById('itemModalError');
+    if(!supplier){errEl.textContent='⚠ サプライヤ名を入力してください。';errEl.style.display='block';return;}
+    if(!item)    {errEl.textContent='⚠ アイテム名を入力してください。';  errEl.style.display='block';return;}
+    var entry={supplier:supplier,cat:cat,device:device,item:item,status:status,req:req,note:note};
+    if(idx===-1)items.push(entry);else items[idx]=entry;
+    saveData();closeItemModal();renderAll();
+  }
+
+  // ========== 削除モーダル ==========
+  function openDeleteModal(idx){
+    deleteTargetIndex=idx;
+    document.getElementById('deleteTargetName').textContent=items[idx].supplier+' / '+(items[idx].device||'機器名なし')+' / '+items[idx].item;
+    document.getElementById('deleteModal').classList.add('active');
+  }
+  function closeDeleteModal(){document.getElementById('deleteModal').classList.remove('active');deleteTargetIndex=-1;}
+  function confirmDelete(){if(deleteTargetIndex>=0){items.splice(deleteTargetIndex,1);saveData();renderAll();}closeDeleteModal();}
+
+  // ========== タブ切替 ==========
+  function switchTab(tab,btn){
+    document.getElementById('tab-dashboard').style.display=tab==='dashboard'?'':'none';
+    document.getElementById('tab-items').style.display    =tab==='items'    ?'':'none';
+    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    if(tab==='items')    renderItems();
+    if(tab==='dashboard')setTimeout(function(){renderCharts();},50);
+  }
+
+  // ========== CSV出力 ==========
+  function exportCSV(){
+    var rows=[['サプライヤ名','区分','機器名称','アイテム名','ステータス','送付依頼','備考']];
+    items.forEach(function(d){
+      rows.push([d.supplier,d.cat,d.device||'',d.item,d.status,d.req?'送付依頼済':'未依頼',d.note||'']);
+    });
+    var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+    var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='写真回収状況バックアップ_'+new Date().toISOString().slice(0,10)+'.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ========== テンプレDL ==========
+  function downloadTemplate(){
+    var rows=[
+      ['サプライヤ名','区分','機器名称','アイテム名','ステータス','送付依頼','備考'],
+      ['光南溶工','機器','5号炭化品集合コンベヤ','本体','未回収','未依頼',''],
+      ['白石鉄工','機器','No.3消化槽','側板4,5','回収済','送付依頼済',''],
+    ];
+    var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+    var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='写真回収状況_テンプレート.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ========== インポートモーダル ==========
+  function openImportModal(){
+    workbook=null;parsedRows=[];columnHeaders=[];
+    document.getElementById('fileInput').value='';
+    ['sheetSelectArea','mappingArea','previewArea','importModeArea'].forEach(function(id){document.getElementById(id).style.display='none';});
+    document.getElementById('importBtn').style.display='none';
+    document.getElementById('importError').style.display='none';
+    document.getElementById('importModal').classList.add('active');
+  }
+  function closeImportModal(){document.getElementById('importModal').classList.remove('active');}
+
+  var dz=document.getElementById('dropZone');
+  dz.addEventListener('dragover', function(e){e.preventDefault();dz.classList.add('dragover');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('dragover');});
+  dz.addEventListener('drop',function(e){
+    e.preventDefault();dz.classList.remove('dragover');
+    if(e.dataTransfer.files.length>0)processFile(e.dataTransfer.files[0]);
+  });
+  function handleFileSelect(e){if(e.target.files.length>0)processFile(e.target.files[0]);}
+
+  function processFile(file){
+    var errEl=document.getElementById('importError');
+    errEl.style.display='none';
+    if(!file.name.match(/\.(xlsx|xls|csv)$/i)){
+      errEl.textContent='⚠ .xlsx / .xls / .csv ファイルを選択してください。';
+      errEl.style.display='block';return;
+    }
+    var isCSV=file.name.match(/\.csv$/i);
+    if(isCSV){
+      var reader=new FileReader();
+      reader.onload=function(e){
+        try{
+          var text=e.target.result;
+          var data=parseCSVText(text);
+          if(!data||data.length<2){errEl.textContent='⚠ データがありません。';errEl.style.display='block';return;}
+          columnHeaders=data[0].map(function(c){return String(c);});
+          parsedRows=data.slice(1).filter(function(r){return r.some(function(c){return c!=='';});});
+          document.getElementById('sheetSelectArea').style.display='none';
+          buildMappingSelects();applyMapping();
+          document.getElementById('mappingArea').style.display='';
+          document.getElementById('importModeArea').style.display='';
+        }catch(err){errEl.textContent='⚠ 読み込み失敗：'+err.message;errEl.style.display='block';}
+      };
+      reader.readAsText(file,'UTF-8');
+    } else {
+      var reader2=new FileReader();
+      reader2.onload=function(e){
+        try{
+          workbook=XLSX.read(e.target.result,{type:'array'});
+          var sel=document.getElementById('sheetSelect');
+          sel.innerHTML='';
+          workbook.SheetNames.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+          document.getElementById('sheetSelectArea').style.display='';
+          onSheetChange();
+        }catch(err){errEl.textContent='⚠ 読み込み失敗：'+err.message;errEl.style.display='block';}
+      };
+      reader2.readAsArrayBuffer(file);
+    }
+  }
+
+  function onSheetChange(){
+    var ws=workbook.Sheets[document.getElementById('sheetSelect').value];
+    var data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(!data||data.length<2){document.getElementById('importError').textContent='⚠ データがありません。';document.getElementById('importError').style.display='block';return;}
+    columnHeaders=data[0].map(function(c){return String(c);});
+    parsedRows=data.slice(1).filter(function(r){return r.some(function(c){return c!=='';});});
+    buildMappingSelects();applyMapping();
+    document.getElementById('mappingArea').style.display='';
+    document.getElementById('importModeArea').style.display='';
+  }
+
+  function buildMappingSelects(){
+    var maps=['mapSupplier','mapCatI','mapDevice','mapItem','mapStatus','mapReq','mapNote'];
+    var defs=['サプライヤ','区分','機器','アイテム','ステータス','送付','備考'];
+    maps.forEach(function(id,i){
+      var sel=document.getElementById(id);
+      sel.innerHTML='<option value="-1">（なし）</option>';
+      columnHeaders.forEach(function(h,idx){var o=document.createElement('option');o.value=idx;o.textContent=h||'（列'+(idx+1)+'）';sel.appendChild(o);});
+      var matched=columnHeaders.findIndex(function(h){return h.indexOf(defs[i])>=0||defs[i].indexOf(h)>=0;});
+      sel.value=matched>=0?matched:(i<columnHeaders.length?i:-1);
+    });
+  }
+
+  function applyMapping(){
+    var iSup =parseInt(document.getElementById('mapSupplier').value);
+    var iCat =parseInt(document.getElementById('mapCatI').value);
+    var iDev =parseInt(document.getElementById('mapDevice').value);
+    var iItem=parseInt(document.getElementById('mapItem').value);
+    var iSt  =parseInt(document.getElementById('mapStatus').value);
+    var iReq =parseInt(document.getElementById('mapReq').value);
+    var iNote=parseInt(document.getElementById('mapNote').value);
+    var validCats=['機器','付属品','その他'],validSt=['回収済','回収不要','未回収'];
+    var valid=[],errors=[];
+    parsedRows.forEach(function(r,ri){
+      var sup   =String(iSup >=0?r[iSup] :'').trim();
+      var cat   =String(iCat >=0?r[iCat] :'機器').trim();
+      var dev   =String(iDev >=0?r[iDev] :'').trim();
+      var itm   =String(iItem>=0?r[iItem]:'').trim();
+      var st    =String(iSt  >=0?r[iSt]  :'未回収').trim();
+      var reqVal=String(iReq >=0?r[iReq] :'').trim();
+      var req   =reqVal==='送付依頼済'||reqVal==='1'||reqVal==='true'||reqVal==='TRUE';
+      var note  =String(iNote>=0?r[iNote]:'').trim();
+      var err=[];
+      if(!sup)err.push('サプライヤ名なし');
+      if(!itm)err.push('アイテム名なし');
+      if(validCats.indexOf(cat)<0)cat='その他';
+      if(validSt.indexOf(st)<0)st='未回収';
+      if(err.length>0)errors.push({row:ri+2,supplier:sup,cat:cat,device:dev,item:itm,status:st,req:req,note:note,error:err.join('/')});
+      else valid.push({supplier:sup,cat:cat,device:dev,item:itm,status:st,req:req,note:note});
+    });
+    var tbl=document.getElementById('previewTable');
+    tbl.innerHTML='<tr><th>サプライヤ</th><th>区分</th><th>機器名称</th><th>アイテム名</th><th>ステータス</th><th>送付依頼</th><th>状態</th></tr>';
+    valid.slice(0,5).forEach(function(r){
+      tbl.innerHTML+='<tr><td>'+escHtml(r.supplier)+'</td><td>'+escHtml(r.cat)+'</td><td>'+escHtml(r.device)+'</td><td>'+escHtml(r.item)+'</td><td>'+escHtml(r.status)+'</td><td>'+(r.req?'📨 依頼済':'📭 未依頼')+'</td><td><span class="badge-ok">✅ OK</span></td></tr>';
+    });
+    errors.slice(0,Math.max(0,5-valid.length)).forEach(function(r){
+      tbl.innerHTML+='<tr><td>'+escHtml(r.supplier)+'</td><td>'+escHtml(r.cat)+'</td><td>'+escHtml(r.device)+'</td><td>'+escHtml(r.item)+'</td><td>'+escHtml(r.status)+'</td><td>'+(r.req?'📨 依頼済':'📭 未依頼')+'</td><td><span class="badge-err">⚠ '+r.error+'</span></td></tr>';
+    });
+    document.getElementById('importSummary').textContent='有効：'+valid.length+'件 / スキップ：'+errors.length+'件（合計'+parsedRows.length+'行）';
+    document.getElementById('previewBadge').innerHTML='<span class="badge-ok">有効 '+valid.length+'件</span>'+(errors.length>0?' <span class="badge-err">スキップ '+errors.length+'件</span>':'');
+    document.getElementById('previewArea').style.display='';
+    document.getElementById('importBtn').style.display=valid.length>0?'':'none';
+    document.getElementById('importBtn').dataset.valid=JSON.stringify(valid);
+  }
+
+  function executeImport(){
+    var valid=JSON.parse(document.getElementById('importBtn').dataset.valid||'[]');
+    var mode=document.querySelector('input[name="importMode"]:checked').value;
+    if(mode==='replace'){items=valid;}
+    else{valid.forEach(function(row){var idx=items.findIndex(function(d){return d.supplier===row.supplier&&d.item===row.item;});if(idx>=0)items[idx]=row;else items.push(row);});}
+    saveData();closeImportModal();renderAll();
+    alert('✅ インポート完了！\n'+valid.length+'件を'+(mode==='replace'?'置換':'マージ')+'しました。');
+  }
+
+  // モーダル外クリックで閉じる
+  ['itemModal','deleteModal','importModal'].forEach(function(id){
+    document.getElementById(id).addEventListener('click',function(e){
+      if(e.target===this){
+        if(id==='itemModal')closeItemModal();
+        else if(id==='deleteModal')closeDeleteModal();
+        else closeImportModal();
+      }
+    });
+  });
+  document.getElementById('pwModal').addEventListener('click',function(e){
+    if(e.target===this)closePwModal();
+  });
+
+  function renderAll(){renderKPI();renderCharts();renderItems();}
+
+  // ========== 初期化 ==========
+  loadData();
+  initLock();
+  var now=new Date();
+  document.getElementById('lastUpdated').textContent=
+    '最終更新：'+now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
+  renderAll();
+
+  window.addEventListener('resize',function(){
+    if(pieChartInst)pieChartInst.resize();
+    if(catBarInst)  catBarInst.resize();
+    if(supBarInst)  supBarInst.resize();
+  });
+</script>
+</body>
+</html>
