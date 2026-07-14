@@ -725,16 +725,43 @@ function saveToGAS(callback) {
   function expandAll(){collapsedGroups={};renderItems();}
   function collapseAll(){var g={};items.forEach(function(d){g[d.supplier]=true;});collapsedGroups=g;renderItems();}
 
-  function changeStatus(idx,val){
+ function changeStatus(idx,val){
     if(!isEditUnlocked){openPwModal();return;}
+    var prev = items[idx].status;
     items[idx].status=val;
-    saveToGAS(function(ok){if(ok){renderKPI();renderCharts();}});
+    // 先に画面を更新
+    renderKPI();
+    renderCharts();
+    saveToGAS(function(ok){
+      if(!ok){
+        // 保存失敗時は元に戻す
+        items[idx].status=prev;
+        renderKPI();
+        renderCharts();
+      }
+    });
   }
+
   function toggleReq(idx){
     if(!isEditUnlocked){openPwModal();return;}
     items[idx].req=!items[idx].req;
     saveToGAS(function(ok){if(ok){renderKPI();renderItems();}});
+  }function toggleReq(idx){
+    if(!isEditUnlocked){openPwModal();return;}
+    items[idx].req=!items[idx].req;
+    // 先に画面を更新してからGASに保存
+    renderKPI();
+    renderItems();
+    saveToGAS(function(ok){
+      if(!ok){
+        // 保存失敗時は元に戻す
+        items[idx].req=!items[idx].req;
+        renderKPI();
+        renderItems();
+      }
+    });
   }
+
 
   function refreshDataLists(){
     var suppliers=[...new Set(items.map(function(d){return d.supplier;}))];
