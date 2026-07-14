@@ -68,12 +68,10 @@
     .btn-locked { opacity:0.35; cursor:not-allowed !important; pointer-events:none; }
     .req-btn-locked { opacity:0.35; cursor:not-allowed !important; pointer-events:none; }
     .pw-modal { background:white; border-radius:14px; padding:28px; width:340px; box-shadow:0 8px 32px rgba(0,0,0,0.2); text-align:center; }
-    /* ローディング */
     #loadingOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
     #loadingOverlay.active { display:flex; }
     .spinner { width:40px; height:40px; border:4px solid #e0e0e0; border-top:4px solid #2196f3; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    /* 同期ステータス */
     #syncStatus { font-size:11px; padding:2px 8px; border-radius:20px; }
     #syncStatus.syncing  { background:#fff3e0; color:#e65100; }
     #syncStatus.synced   { background:#e8f5e9; color:#2e7d32; }
@@ -82,13 +80,11 @@
 </head>
 <body>
 
-<!-- ローディングオーバーレイ -->
 <div id="loadingOverlay">
   <div class="spinner"></div>
   <p style="font-size:13px;color:#555;font-weight:600;" id="loadingMsg">データを読み込み中...</p>
 </div>
 
-<!-- ロックバナー -->
 <div id="lockBanner">
   <span id="lockStatus">🔒 閲覧モード（編集にはパスワードが必要です）</span>
   <div style="display:flex;gap:6px;align-items:center;">
@@ -101,14 +97,14 @@
 <div id="header" class="card" style="margin:8px 8px 0 8px;border-radius:10px;">
   <div style="display:flex;align-items:center;gap:10px;">
     <span style="font-size:18px;font-weight:800;color:#1a237e;">📷 写真回収状況ダッシュボード</span>
-    <span id="lastUpdated" class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;"></span>
+    <span id="lastUpdated" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;"></span>
   </div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
     <button id="btn-import"   class="btn btn-orange btn-locked" onclick="requireEdit(openImportModal)">📂 インポート</button>
     <button id="btn-add"      class="btn btn-primary btn-locked" onclick="requireEdit(openAddItemModal)">＋ 追加</button>
     <button class="btn btn-gray"   onclick="exportCSV()">📥 CSV出力</button>
     <button class="btn btn-purple" onclick="downloadTemplate()">📋 テンプレDL</button>
-    <button class="btn btn-primary" onclick="loadFromGAS(true)" style="background:#00897b;">🔄 最新データ取得</button>
+    <button class="btn" onclick="loadFromGAS(true)" style="background:#00897b;color:white;">🔄 最新データ取得</button>
   </div>
 </div>
 
@@ -183,7 +179,7 @@
   </div>
 </div>
 
-<!-- アイテム追加/編集モーダル -->
+<!-- アイテムモーダル -->
 <div class="modal-overlay" id="itemModal">
   <div class="modal" style="width:480px;">
     <h2 style="font-size:15px;font-weight:800;color:#1a237e;margin-bottom:14px;" id="itemModalTitle">アイテム追加</h2>
@@ -215,16 +211,16 @@
     <div style="margin-bottom:10px;">
       <label style="font-size:11px;font-weight:600;color:#666;">ステータス</label>
       <div style="display:flex;gap:14px;margin-top:6px;">
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iStatus" value="未回収" checked> <span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">❌ 未回収</span></label>
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iStatus" value="回収済"> <span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">✅ 回収済</span></label>
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iStatus" value="回収不要"> <span style="background:#f5f5f5;color:#757575;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">⬜ 回収不要</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iStatus" value="未回収" checked> <span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">❌ 未回収</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iStatus" value="回収済"> <span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">✅ 回収済</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iStatus" value="回収不要"> <span style="background:#f5f5f5;color:#757575;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">⬜ 回収不要</span></label>
       </div>
     </div>
     <div style="margin-bottom:10px;">
       <label style="font-size:11px;font-weight:600;color:#666;">送付依頼</label>
       <div style="display:flex;gap:14px;margin-top:6px;">
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iReq" value="0" checked> <span style="background:#f5f5f5;color:#999;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📭 未依頼</span></label>
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;"><input type="radio" name="iReq" value="1"> <span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📨 送付依頼済</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="0" checked> <span style="background:#f5f5f5;color:#999;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📭 未依頼</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="1"> <span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📨 送付依頼済</span></label>
       </div>
     </div>
     <div style="margin-bottom:12px;">
@@ -313,9 +309,7 @@
     <input type="password" id="pwInput" placeholder="パスワードを入力"
       style="text-align:center;font-size:16px;letter-spacing:4px;margin-bottom:8px;"
       onkeydown="if(event.key==='Enter')checkPassword()">
-    <div id="pwError" style="color:#f44336;font-size:12px;margin-bottom:8px;display:none;">
-      ⚠ パスワードが違います
-    </div>
+    <div id="pwError" style="color:#f44336;font-size:12px;margin-bottom:8px;display:none;">⚠ パスワードが違います</div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
       <button class="btn btn-gray"    onclick="closePwModal()">キャンセル</button>
       <button class="btn btn-primary" onclick="checkPassword()">🔓 解除する</button>
@@ -327,8 +321,8 @@
   Chart.register(ChartDataLabels);
 
   // ========== 設定 ==========
-  var GAS_URL      = 'https://script.google.com/macros/s/AKfycbyF5BMUkTEagKEizD9eQwVgAV8_2JS-y5B-koOv9mSuecRgoUs6NAPKRt28zvBw0ba6oA/exec';
-  var EDIT_PASSWORD = 'hyogohigashi'; // ← 必要に応じて変更してください
+  var GAS_URL       = 'https://script.google.com/macros/s/AKfycbyF5BMUkTEagKEizD9eQwVgAV8_2JS-y5B-koOv9mSuecRgoUs6NAPKRt28zvBw0ba6oA/exec';
+  var EDIT_PASSWORD = 'hyogohigashi'; // ← 必要に応じて変更
   var SESSION_KEY   = 'photoApp_editUnlocked';
   // ==========================
 
@@ -338,6 +332,7 @@
   var pieChartInst = null, catBarInst = null, supBarInst = null;
   var workbook = null, parsedRows = [], columnHeaders = [];
   var isEditUnlocked = false;
+  var jsonpCallbackCounter = 0;
 
   // ========== ローディング ==========
   function showLoading(msg) {
@@ -351,85 +346,99 @@
   // ========== 同期ステータス ==========
   function setSyncStatus(state, msg) {
     var el = document.getElementById('syncStatus');
-    el.className = 'synced'; // reset
     if (state === 'syncing') {
       el.className = 'syncing';
       el.textContent = '🔄 ' + (msg || '同期中...');
     } else if (state === 'error') {
       el.className = 'error';
-      el.textContent = '❌ ' + (msg || '同期エラー');
+      el.textContent = '❌ ' + (msg || 'エラー');
     } else {
       el.className = 'synced';
       el.textContent = '✅ 同期済み';
     }
   }
 
-  // ========== GAS通信 ==========
+  // ========== JSONP通信 ==========
+  function jsonpRequest(params, callback) {
+    var cbName = '__gasCallback_' + (jsonpCallbackCounter++);
+    var url = GAS_URL + '?callback=' + cbName;
+    Object.keys(params).forEach(function(k) {
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    });
+
+    var timeout = setTimeout(function() {
+      delete window[cbName];
+      var s = document.getElementById(cbName + '_script');
+      if (s) s.parentNode.removeChild(s);
+      callback({ status: 'error', message: 'タイムアウトしました（30秒）' });
+    }, 30000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      var s = document.getElementById(cbName + '_script');
+      if (s) s.parentNode.removeChild(s);
+      callback(data);
+    };
+
+    var script = document.createElement('script');
+    script.id  = cbName + '_script';
+    script.src = url;
+    script.onerror = function() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.parentNode.removeChild(script);
+      callback({ status: 'error', message: 'スクリプト読み込みエラー' });
+    };
+    document.head.appendChild(script);
+  }
+
+  // ========== GASデータ取得 ==========
   function loadFromGAS(showAlert) {
     showLoading('スプレッドシートからデータを取得中...');
     setSyncStatus('syncing', 'データ取得中...');
-    fetch(GAS_URL + '?action=get')
-      .then(function(res) { return res.json(); })
-      .then(function(json) {
-        hideLoading();
-        if (json.status === 'ok') {
-          items = json.data.map(function(d) {
-            return {
-              supplier : String(d.supplier || ''),
-              cat      : String(d.cat      || 'その他'),
-              device   : String(d.device   || ''),
-              item     : String(d.item     || ''),
-              status   : String(d.status   || '未回収'),
-              req      : d.req === true || d.req === 'TRUE' || d.req === '1',
-              note     : String(d.note     || '')
-            };
-          });
-          setSyncStatus('synced');
-          updateLastUpdated();
-          renderAll();
-          if (showAlert) alert('✅ 最新データを取得しました（' + items.length + '件）');
-        } else {
-          setSyncStatus('error', 'GASエラー');
-          alert('⚠ データ取得に失敗しました：' + json.message);
-        }
-      })
-      .catch(function(err) {
-        hideLoading();
-        setSyncStatus('error', '通信エラー');
-        console.error(err);
-        alert('⚠ 通信エラーが発生しました。\n\n' +
-              '考えられる原因：\n' +
-              '・GASのデプロイ設定が「全員」になっていない\n' +
-              '・GASのURLが間違っている\n' +
-              '・インターネット接続の問題\n\n' + err.toString());
-      });
+    jsonpRequest({ action: 'get' }, function(json) {
+      hideLoading();
+      if (json.status === 'ok') {
+        items = json.data.map(function(d) {
+          return {
+            supplier : String(d.supplier || ''),
+            cat      : String(d.cat      || 'その他'),
+            device   : String(d.device   || ''),
+            item     : String(d.item     || ''),
+            status   : String(d.status   || '未回収'),
+            req      : d.req === true || d.req === 'TRUE' || d.req === '1',
+            note     : String(d.note     || '')
+          };
+        });
+        setSyncStatus('synced');
+        updateLastUpdated();
+        renderAll();
+        if (showAlert) alert('✅ 最新データを取得しました（' + items.length + '件）');
+      } else {
+        setSyncStatus('error', 'GASエラー');
+        alert('⚠ データ取得エラー：' + json.message);
+      }
+    });
   }
 
+  // ========== GASデータ保存 ==========
   function saveToGAS(callback) {
     setSyncStatus('syncing', '保存中...');
-    fetch(GAS_URL, {
-      method : 'POST',
-      body   : JSON.stringify({ action: 'save', items: items }),
-      headers: { 'Content-Type': 'text/plain' }
-    })
-      .then(function(res) { return res.json(); })
-      .then(function(json) {
-        if (json.status === 'ok') {
-          setSyncStatus('synced');
-          updateLastUpdated();
-          if (callback) callback(true);
-        } else {
-          setSyncStatus('error', '保存エラー');
-          alert('⚠ 保存に失敗しました：' + json.message);
-          if (callback) callback(false);
-        }
-      })
-      .catch(function(err) {
-        setSyncStatus('error', '通信エラー');
-        console.error(err);
-        alert('⚠ 保存中に通信エラーが発生しました。\n' + err.toString());
+    jsonpRequest({
+      action : 'save',
+      items  : JSON.stringify(items)
+    }, function(json) {
+      if (json.status === 'ok') {
+        setSyncStatus('synced');
+        updateLastUpdated();
+        if (callback) callback(true);
+      } else {
+        setSyncStatus('error', '保存エラー');
+        alert('⚠ 保存エラー：' + json.message);
         if (callback) callback(false);
-      });
+      }
+    });
   }
 
   function updateLastUpdated() {
@@ -441,9 +450,7 @@
 
   // ========== ロック制御 ==========
   function initLock() {
-    if (sessionStorage.getItem(SESSION_KEY) === '1') {
-      isEditUnlocked = true;
-    }
+    if (sessionStorage.getItem(SESSION_KEY) === '1') isEditUnlocked = true;
     updateLockUI();
   }
   function openPwModal() {
@@ -452,9 +459,7 @@
     document.getElementById('pwModal').classList.add('active');
     setTimeout(function(){ document.getElementById('pwInput').focus(); }, 100);
   }
-  function closePwModal() {
-    document.getElementById('pwModal').classList.remove('active');
-  }
+  function closePwModal() { document.getElementById('pwModal').classList.remove('active'); }
   function checkPassword() {
     if (document.getElementById('pwInput').value === EDIT_PASSWORD) {
       isEditUnlocked = true;
@@ -498,11 +503,11 @@
     }
   }
   function requireEdit(fn) {
-    if (isEditUnlocked) { fn(); }
-    else { openPwModal(); }
+    if (isEditUnlocked) fn();
+    else openPwModal();
   }
 
-  // ========== CSV パーサー ==========
+  // ========== CSVパーサー ==========
   function parseCSVText(text) {
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
     var rows = [];
@@ -678,9 +683,7 @@
         itr.innerHTML=
           '<td></td>'+
           '<td style="padding-left:20px;color:#555;">'+
-            (d.device
-              ?'<span style="font-size:11px;background:#e8f0fe;color:#1a73e8;padding:1px 6px;border-radius:8px;">'+escHtml(d.device)+'</span>'
-              :'<span style="font-size:10px;color:#bbb;">（機器名なし）</span>')+
+            (d.device?'<span style="font-size:11px;background:#e8f0fe;color:#1a73e8;padding:1px 6px;border-radius:8px;">'+escHtml(d.device)+'</span>':'<span style="font-size:10px;color:#bbb;">（機器名なし）</span>')+
           '</td>'+
           '<td style="color:#333;">'+escHtml(d.item)+'</td>'+
           '<td></td>'+
@@ -694,8 +697,7 @@
           '<td>'+
             '<button onclick="'+(locked?'openPwModal()':'toggleReq('+origIdx+')')+'" '+
               'class="'+(locked?'req-btn-locked':'')+'" '+
-              'style="border:none;background:none;cursor:'+(locked?'not-allowed':'pointer')+';padding:0;" '+
-              'title="'+(locked?'編集ロック中':'クリックで切替')+'">'+
+              'style="border:none;background:none;cursor:'+(locked?'not-allowed':'pointer')+';padding:0;">'+
               (d.req?'<span class="badge-req">📨 送付依頼済</span>':'<span class="badge-noreq">📭 未依頼</span>')+
             '</button>'+
           '</td>'+
@@ -789,7 +791,8 @@
   // ========== 削除モーダル ==========
   function openDeleteModal(idx){
     deleteTargetIndex=idx;
-    document.getElementById('deleteTargetName').textContent=items[idx].supplier+' / '+(items[idx].device||'機器名なし')+' / '+items[idx].item;
+    document.getElementById('deleteTargetName').textContent=
+      items[idx].supplier+' / '+(items[idx].device||'機器名なし')+' / '+items[idx].item;
     document.getElementById('deleteModal').classList.add('active');
   }
   function closeDeleteModal(){document.getElementById('deleteModal').classList.remove('active');deleteTargetIndex=-1;}
@@ -824,11 +827,9 @@
     var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
     var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
     var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');
-    a.href=url;
+    var a=document.createElement('a');a.href=url;
     a.download='写真回収状況_'+new Date().toISOString().slice(0,10)+'.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    a.click();URL.revokeObjectURL(url);
   }
 
   // ========== テンプレDL ==========
@@ -841,18 +842,18 @@
     var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
     var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
     var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');
-    a.href=url;
+    var a=document.createElement('a');a.href=url;
     a.download='写真回収状況_テンプレート.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    a.click();URL.revokeObjectURL(url);
   }
 
   // ========== インポートモーダル ==========
   function openImportModal(){
     workbook=null;parsedRows=[];columnHeaders=[];
     document.getElementById('fileInput').value='';
-    ['sheetSelectArea','mappingArea','previewArea','importModeArea'].forEach(function(id){document.getElementById(id).style.display='none';});
+    ['sheetSelectArea','mappingArea','previewArea','importModeArea'].forEach(function(id){
+      document.getElementById(id).style.display='none';
+    });
     document.getElementById('importBtn').style.display='none';
     document.getElementById('importError').style.display='none';
     document.getElementById('importModal').classList.add('active');
@@ -875,13 +876,11 @@
       errEl.textContent='⚠ .xlsx / .xls / .csv ファイルを選択してください。';
       errEl.style.display='block';return;
     }
-    var isCSV=file.name.match(/\.csv$/i);
-    if(isCSV){
+    if(file.name.match(/\.csv$/i)){
       var reader=new FileReader();
       reader.onload=function(e){
         try{
-          var text=e.target.result;
-          var data=parseCSVText(text);
+          var data=parseCSVText(e.target.result);
           if(!data||data.length<2){errEl.textContent='⚠ データがありません。';errEl.style.display='block';return;}
           columnHeaders=data[0].map(function(c){return String(c);});
           parsedRows=data.slice(1).filter(function(r){return r.some(function(c){return c!=='';});});
@@ -899,7 +898,9 @@
           workbook=XLSX.read(e.target.result,{type:'array'});
           var sel=document.getElementById('sheetSelect');
           sel.innerHTML='';
-          workbook.SheetNames.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+          workbook.SheetNames.forEach(function(n){
+            var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);
+          });
           document.getElementById('sheetSelectArea').style.display='';
           onSheetChange();
         }catch(err){errEl.textContent='⚠ 読み込み失敗：'+err.message;errEl.style.display='block';}
@@ -911,7 +912,10 @@
   function onSheetChange(){
     var ws=workbook.Sheets[document.getElementById('sheetSelect').value];
     var data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    if(!data||data.length<2){document.getElementById('importError').textContent='⚠ データがありません。';document.getElementById('importError').style.display='block';return;}
+    if(!data||data.length<2){
+      document.getElementById('importError').textContent='⚠ データがありません。';
+      document.getElementById('importError').style.display='block';return;
+    }
     columnHeaders=data[0].map(function(c){return String(c);});
     parsedRows=data.slice(1).filter(function(r){return r.some(function(c){return c!=='';});});
     buildMappingSelects();applyMapping();
@@ -925,7 +929,9 @@
     maps.forEach(function(id,i){
       var sel=document.getElementById(id);
       sel.innerHTML='<option value="-1">（なし）</option>';
-      columnHeaders.forEach(function(h,idx){var o=document.createElement('option');o.value=idx;o.textContent=h||'（列'+(idx+1)+'）';sel.appendChild(o);});
+      columnHeaders.forEach(function(h,idx){
+        var o=document.createElement('option');o.value=idx;o.textContent=h||'（列'+(idx+1)+'）';sel.appendChild(o);
+      });
       var matched=columnHeaders.findIndex(function(h){return h.indexOf(defs[i])>=0||defs[i].indexOf(h)>=0;});
       sel.value=matched>=0?matched:(i<columnHeaders.length?i:-1);
     });
@@ -942,14 +948,14 @@
     var validCats=['機器','付属品','その他'],validSt=['回収済','回収不要','未回収'];
     var valid=[],errors=[];
     parsedRows.forEach(function(r,ri){
-      var sup   =String(iSup >=0?r[iSup] :'').trim();
-      var cat   =String(iCat >=0?r[iCat] :'機器').trim();
-      var dev   =String(iDev >=0?r[iDev] :'').trim();
-      var itm   =String(iItem>=0?r[iItem]:'').trim();
-      var st    =String(iSt  >=0?r[iSt]  :'未回収').trim();
-      var reqVal=String(iReq >=0?r[iReq] :'').trim();
-      var req   =reqVal==='送付依頼済'||reqVal==='1'||reqVal==='true'||reqVal==='TRUE';
-      var note  =String(iNote>=0?r[iNote]:'').trim();
+      var sup =String(iSup >=0?r[iSup] :'').trim();
+      var cat =String(iCat >=0?r[iCat] :'機器').trim();
+      var dev =String(iDev >=0?r[iDev] :'').trim();
+      var itm =String(iItem>=0?r[iItem]:'').trim();
+      var st  =String(iSt  >=0?r[iSt]  :'未回収').trim();
+      var reqV=String(iReq >=0?r[iReq] :'').trim();
+      var req =reqV==='送付依頼済'||reqV==='1'||reqV==='true'||reqV==='TRUE';
+      var note=String(iNote>=0?r[iNote]:'').trim();
       var err=[];
       if(!sup)err.push('サプライヤ名なし');
       if(!itm)err.push('アイテム名なし');
@@ -966,8 +972,11 @@
     errors.slice(0,Math.max(0,5-valid.length)).forEach(function(r){
       tbl.innerHTML+='<tr><td>'+escHtml(r.supplier)+'</td><td>'+escHtml(r.cat)+'</td><td>'+escHtml(r.device)+'</td><td>'+escHtml(r.item)+'</td><td>'+escHtml(r.status)+'</td><td>'+(r.req?'📨 依頼済':'📭 未依頼')+'</td><td><span class="badge-err">⚠ '+r.error+'</span></td></tr>';
     });
-    document.getElementById('importSummary').textContent='有効：'+valid.length+'件 / スキップ：'+errors.length+'件（合計'+parsedRows.length+'行）';
-    document.getElementById('previewBadge').innerHTML='<span class="badge-ok">有効 '+valid.length+'件</span>'+(errors.length>0?' <span class="badge-err">スキップ '+errors.length+'件</span>':'');
+    document.getElementById('importSummary').textContent=
+      '有効：'+valid.length+'件 / スキップ：'+errors.length+'件（合計'+parsedRows.length+'行）';
+    document.getElementById('previewBadge').innerHTML=
+      '<span class="badge-ok">有効 '+valid.length+'件</span>'+
+      (errors.length>0?' <span class="badge-err">スキップ '+errors.length+'件</span>':'');
     document.getElementById('previewArea').style.display='';
     document.getElementById('importBtn').style.display=valid.length>0?'':'none';
     document.getElementById('importBtn').dataset.valid=JSON.stringify(valid);
@@ -977,7 +986,10 @@
     var valid=JSON.parse(document.getElementById('importBtn').dataset.valid||'[]');
     var mode=document.querySelector('input[name="importMode"]:checked').value;
     if(mode==='replace'){items=valid;}
-    else{valid.forEach(function(row){var idx=items.findIndex(function(d){return d.supplier===row.supplier&&d.item===row.item;});if(idx>=0)items[idx]=row;else items.push(row);});}
+    else{valid.forEach(function(row){
+      var idx=items.findIndex(function(d){return d.supplier===row.supplier&&d.item===row.item;});
+      if(idx>=0)items[idx]=row;else items.push(row);
+    });}
     closeImportModal();
     showLoading('スプレッドシートに保存中...');
     saveToGAS(function(ok){
@@ -992,11 +1004,10 @@
   // モーダル外クリックで閉じる
   ['itemModal','deleteModal','importModal'].forEach(function(id){
     document.getElementById(id).addEventListener('click',function(e){
-      if(e.target===this){
-        if(id==='itemModal')closeItemModal();
-        else if(id==='deleteModal')closeDeleteModal();
-        else closeImportModal();
-      }
+      if(e.target!==this)return;
+      if(id==='itemModal')closeItemModal();
+      else if(id==='deleteModal')closeDeleteModal();
+      else closeImportModal();
     });
   });
   document.getElementById('pwModal').addEventListener('click',function(e){
@@ -1007,7 +1018,7 @@
 
   // ========== 初期化 ==========
   initLock();
-  loadFromGAS(false); // 起動時にGASからデータ取得
+  loadFromGAS(false);
 
   window.addEventListener('resize',function(){
     if(pieChartInst)pieChartInst.resize();
