@@ -631,8 +631,9 @@
       + '</div>';
   }
 
-  function kpiCardReq(reqCount, total, reqSuppliers, totalSuppliers) {
-    var pct = total > 0 ? (reqCount / total * 100).toFixed(1) : 0;
+   function kpiCardReq(reqCount, total, reqSuppliers, totalSuppliers) {
+    // ✅ パーセンテージを社数ベースに修正
+    var pct = totalSuppliers > 0 ? Math.round(reqSuppliers / totalSuppliers * 100) : 0;
     return '<div class="card kpi-card" style="border-left:4px solid #1565c0;">'
       + '<p style="font-size:11px;color:#888;margin:0 0 2px;">📨 送付依頼済</p>'
       + '<p style="font-size:22px;font-weight:800;color:#1565c0;margin:0;line-height:1.2;">'+reqCount
@@ -644,6 +645,7 @@
       + '<p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+pct+'%</p>'
       + '</div>';
   }
+
 
   // ========== チャート ==========
   var chartDefaults = {responsive:true, maintainAspectRatio:false, animation:{duration:400}};
