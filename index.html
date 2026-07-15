@@ -502,16 +502,18 @@ function calcTotals() {
   var supMap = {};
   items.forEach(function(d) {
     if (!d.supplier) return;
-    if (!supMap[d.supplier]) supMap[d.supplier] = { hasReq:false, hasReqno:false };
+    if (!supMap[d.supplier]) supMap[d.supplier] = { hasReq:false, hasReqno:false, allReqno:true };
     if (d.req === '送付依頼済') supMap[d.supplier].hasReq   = true;
     if (d.req === '依頼不要')   supMap[d.supplier].hasReqno = true;
+    // 依頼不要以外（送付依頼済 or 未依頼）が1件でもあれば全依頼不要ではない
+    if (d.req !== '依頼不要')   supMap[d.supplier].allReqno = false;
   });
 
   var totalSuppliers = 0, doneSuppliers = 0, reqnoSuppliers = 0;
   Object.values(supMap).forEach(function(s) {
     totalSuppliers++;
     if (s.hasReq || s.hasReqno) doneSuppliers++;
-    if (s.hasReqno)             reqnoSuppliers++;   // ← 依頼不要社数
+    if (s.allReqno)             reqnoSuppliers++; // 全件依頼不要の社のみカウント
   });
 
   return { done, noNeed, notYet, total, reqCount, rate, totalSuppliers, doneSuppliers, reqnoSuppliers };
@@ -551,7 +553,8 @@ function kpiCardRate(rate, done, noNeed, notYet, total) {
     +'<p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+(done+noNeed)+'/'+total+'件（不要含む）</p></div>';
 }
 
-// ========== 送付対応済KPI（依頼不要は「社数」で表示） ==========
+// ========== 送付対応済KPI ==========
+// reqnoSuppliers：全アイテムが依頼不要のサプライヤ数のみ
 function kpiCardReq(reqCount, reqnoSuppliers, doneSuppliers, totalSuppliers) {
   var pct = totalSuppliers > 0 ? Math.round(doneSuppliers / totalSuppliers * 100) : 0;
   return '<div class="card kpi-card" style="border-left:4px solid #1565c0;">'
@@ -648,7 +651,7 @@ function renderItems() {
   });
 }
 
-function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escHtml(s){return String(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');}
 function toggleGroup(s){collapsedGroups[s]=!collapsedGroups[s];renderItems();}
 function expandAll(){collapsedGroups={};renderItems();}
 function collapseAll(){var g={};items.forEach(function(d){g[d.supplier]=true;});collapsedGroups=g;renderItems();}
