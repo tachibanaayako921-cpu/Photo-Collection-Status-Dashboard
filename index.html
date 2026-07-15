@@ -322,7 +322,7 @@
 
   // ========== 設定 ==========
   var GAS_URL       = 'https://script.google.com/macros/s/AKfycbyF5BMUkTEagKEizD9eQwVgAV8_2JS-y5B-koOv9mSuecRgoUs6NAPKRt28zvBw0ba6oA/exec';
-  var EDIT_PASSWORD = 'hyogohigashi'; // ← 必要に応じて変更
+  var EDIT_PASSWORD = 'hyogohigashi';
   var SESSION_KEY   = 'photoApp_editUnlocked';
   // ==========================
 
@@ -423,31 +423,25 @@
   }
 
   // ========== GASデータ保存（POST通信）==========
-function saveToGAS(callback) {
-  setSyncStatus('syncing', '保存中...');
-
-  fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      action: 'save',
-      items:  items
-    }),
-    mode: 'no-cors'  // CORSを回避
-  })
-  .then(function() {
-    // no-corsの場合レスポンスが読めないので成功とみなす
-    setSyncStatus('synced');
-    updateLastUpdated();
-    if (callback) callback(true);
-  })
-  .catch(function(err) {
-    setSyncStatus('error', '保存エラー');
-    alert('⚠ 保存エラー：' + err.message);
-    if (callback) callback(false);
-  });
-}
-
+  function saveToGAS(callback) {
+    setSyncStatus('syncing', '保存中...');
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'save', items: items }),
+      mode: 'no-cors'
+    })
+    .then(function() {
+      setSyncStatus('synced');
+      updateLastUpdated();
+      if (callback) callback(true);
+    })
+    .catch(function(err) {
+      setSyncStatus('error', '保存エラー');
+      alert('⚠ 保存エラー：' + err.message);
+      if (callback) callback(false);
+    });
+  }
 
   function updateLastUpdated() {
     var n = new Date();
@@ -551,8 +545,17 @@ function saveToGAS(callback) {
       if(d.req)reqCount++;
     });
     var total=done+noNeed+notYet;
-    return{done:done,noNeed:noNeed,notYet:notYet,total:total,reqCount:reqCount,
-           rate:total>0?Math.round((done+noNeed)/total*100):0};
+
+    // ===== サプライヤ数集計 =====
+    var totalSuppliers = new Set(items.map(function(i){ return i.supplier; }).filter(function(s){ return s; })).size;
+    var reqSuppliers   = new Set(items.filter(function(i){ return i.req; }).map(function(i){ return i.supplier; }).filter(function(s){ return s; })).size;
+
+    return {
+      done:done, noNeed:noNeed, notYet:notYet, total:total, reqCount:reqCount,
+      rate:total>0?Math.round((done+noNeed)/total*100):0,
+      totalSuppliers:totalSuppliers,
+      reqSuppliers:reqSuppliers
+    };
   }
   function calcSupplierTotals(){
     var map={};
@@ -573,14 +576,33 @@ function saveToGAS(callback) {
       kpiCard('#9e9e9e','⬜ 回収不要',t.noNeed,t.total)+
       kpiCard('#f44336','❌ 未回収',t.notYet,t.total)+
       kpiCardRate(t.rate,t.done,t.noNeed,t.total)+
-      kpiCard('#1565c0','📨 送付依頼済',t.reqCount,t.total);
+      kpiCardReq(t.reqCount,t.total,t.reqSuppliers,t.totalSuppliers);  // ← ここだけ変更
   }
+
   function kpiCard(c,label,v,total){
     var pct=total>0?(v/total*100).toFixed(1):0;
     return '<div class="card kpi-card" style="border-left:4px solid '+c+';"><p style="font-size:11px;color:#888;margin:0 0 2px;">'+label+'</p><p style="font-size:22px;font-weight:800;color:'+c+';margin:0;line-height:1.2;">'+v+'<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:2px;">件</span></p><div class="kpi-bar"><div class="kpi-bar-inner" style="background:'+c+';width:'+pct+'%;"></div></div><p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+pct+'%</p></div>';
   }
+
   function kpiCardRate(rate,done,noNeed,total){
     return '<div class="card kpi-card" style="border-left:4px solid #2196f3;"><p style="font-size:11px;color:#888;margin:0 0 2px;">📊 回収率</p><p style="font-size:22px;font-weight:800;color:#2196f3;margin:0;line-height:1.2;">'+rate+'<span style="font-size:13px;font-weight:700;">%</span></p><div class="kpi-bar"><div class="kpi-bar-inner" style="background:#2196f3;width:'+rate+'%;"></div></div><p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+(done+noNeed)+'/'+total+'件（不要含む）</p></div>';
+  }
+
+  // ===== 送付依頼済カード（サプライヤ数付き） =====
+  function kpiCardReq(reqCount, total, reqSuppliers, totalSuppliers){
+    var pct = total > 0 ? (reqCount / total * 100).toFixed(1) : 0;
+    return '<div class="card kpi-card" style="border-left:4px solid #1565c0;">'
+      + '<p style="font-size:11px;color:#888;margin:0 0 2px;">📨 送付依頼済</p>'
+      + '<p style="font-size:22px;font-weight:800;color:#1565c0;margin:0;line-height:1.2;">'
+      +   reqCount
+      +   '<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:2px;">件</span>'
+      + '</p>'
+      + '<p style="font-size:11px;color:#1565c0;font-weight:700;margin:3px 0 3px;background:#e3f2fd;display:inline-block;padding:1px 8px;border-radius:20px;">'
+      +   '🏭 ' + reqSuppliers + ' / ' + totalSuppliers + ' 社'
+      + '</p>'
+      + '<div class="kpi-bar"><div class="kpi-bar-inner" style="background:#1565c0;width:'+pct+'%;"></div></div>'
+      + '<p style="font-size:10px;color:#aaa;margin:2px 0 0;">'+pct+'%</p>'
+      + '</div>';
   }
 
   // ========== チャート ==========
@@ -725,16 +747,14 @@ function saveToGAS(callback) {
   function expandAll(){collapsedGroups={};renderItems();}
   function collapseAll(){var g={};items.forEach(function(d){g[d.supplier]=true;});collapsedGroups=g;renderItems();}
 
- function changeStatus(idx,val){
+  function changeStatus(idx,val){
     if(!isEditUnlocked){openPwModal();return;}
-    var prev = items[idx].status;
+    var prev=items[idx].status;
     items[idx].status=val;
-    // 先に画面を更新
     renderKPI();
     renderCharts();
     saveToGAS(function(ok){
       if(!ok){
-        // 保存失敗時は元に戻す
         items[idx].status=prev;
         renderKPI();
         renderCharts();
@@ -745,23 +765,16 @@ function saveToGAS(callback) {
   function toggleReq(idx){
     if(!isEditUnlocked){openPwModal();return;}
     items[idx].req=!items[idx].req;
-    saveToGAS(function(ok){if(ok){renderKPI();renderItems();}});
-  }function toggleReq(idx){
-    if(!isEditUnlocked){openPwModal();return;}
-    items[idx].req=!items[idx].req;
-    // 先に画面を更新してからGASに保存
     renderKPI();
     renderItems();
     saveToGAS(function(ok){
       if(!ok){
-        // 保存失敗時は元に戻す
         items[idx].req=!items[idx].req;
         renderKPI();
         renderItems();
       }
     });
   }
-
 
   function refreshDataLists(){
     var suppliers=[...new Set(items.map(function(d){return d.supplier;}))];
