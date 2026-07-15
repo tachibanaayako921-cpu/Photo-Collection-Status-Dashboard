@@ -63,9 +63,9 @@
     .kpi-card { padding:8px 12px; border-radius:9px; display:flex; flex-direction:column; justify-content:center; }
     .kpi-bar { height:5px; border-radius:3px; background:#e0e0e0; margin-top:5px; }
     .kpi-bar-inner { height:5px; border-radius:3px; transition:width 0.4s; }
-    .badge-req    { background:#e3f2fd; color:#1565c0; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
-    .badge-noreq  { background:#f5f5f5; color:#999;    padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
-    .badge-reqno  { background:#f3e5f5; color:#6a1b9a; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .badge-req   { background:#e3f2fd; color:#1565c0; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .badge-noreq { background:#f5f5f5; color:#999;    padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .badge-reqno { background:#f3e5f5; color:#6a1b9a; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
     .btn-locked { opacity:0.35; cursor:not-allowed !important; pointer-events:none; }
     .req-btn-locked { opacity:0.35; cursor:not-allowed !important; pointer-events:none; }
     .pw-modal { background:white; border-radius:14px; padding:28px; width:340px; box-shadow:0 8px 32px rgba(0,0,0,0.2); text-align:center; }
@@ -153,9 +153,9 @@
           </select>
           <select id="filterReq" onchange="renderItems()" style="width:110px;">
             <option value="">全送付状況</option>
-            <option value="req">送付依頼済</option>
-            <option value="noreq">未依頼</option>
-            <option value="reqno">依頼不要</option>
+            <option value="送付依頼済">送付依頼済</option>
+            <option value="未依頼">未依頼</option>
+            <option value="依頼不要">依頼不要</option>
           </select>
           <button class="btn btn-gray" style="padding:4px 10px;" onclick="expandAll()">全展開</button>
           <button class="btn btn-gray" style="padding:4px 10px;" onclick="collapseAll()">全折畳</button>
@@ -221,9 +221,9 @@
     <div style="margin-bottom:10px;">
       <label style="font-size:11px;font-weight:600;color:#666;">送付依頼</label>
       <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="noreq" checked> <span style="background:#f5f5f5;color:#999;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📭 未依頼</span></label>
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="req"> <span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📨 送付依頼済</span></label>
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="reqno"> <span style="background:#f3e5f5;color:#6a1b9a;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">🚫 依頼不要</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="未依頼" checked> <span style="background:#f5f5f5;color:#999;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📭 未依頼</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="送付依頼済"> <span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📨 送付依頼済</span></label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="iReq" value="依頼不要"> <span style="background:#f3e5f5;color:#6a1b9a;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">🚫 依頼不要</span></label>
       </div>
     </div>
     <div style="margin-bottom:12px;">
@@ -338,18 +338,18 @@
   var jsonpCallbackCounter = 0;
 
   // ========== req値ユーティリティ ==========
-  // req値は 'req'(送付依頼済) / 'noreq'(未依頼) / 'reqno'(依頼不要) の3種
-  function reqLabel(val) {
-    if (val === 'req')   return '<span class="badge-req">📨 送付依頼済</span>';
-    if (val === 'reqno') return '<span class="badge-reqno">🚫 依頼不要</span>';
-    return '<span class="badge-noreq">📭 未依頼</span>';
-  }
-  // 旧データ(true/false)との互換変換
+  // 内部値・保存値ともに日本語: '送付依頼済' / '未依頼' / '依頼不要'
   function normalizeReq(val) {
-    if (val === 'req' || val === 'noreq' || val === 'reqno') return val;
-    if (val === true  || val === 'TRUE'  || val === '1' || val === '送付依頼済') return 'req';
-    if (val === '依頼不要' || val === 'reqno') return 'reqno';
-    return 'noreq';
+    var s = String(val || '').trim();
+    if (s === '送付依頼済' || s === 'req'  || s === 'TRUE' || s === 'true'  || s === '1' || s === true)  return '送付依頼済';
+    if (s === '依頼不要'   || s === 'reqno') return '依頼不要';
+    return '未依頼'; // 'noreq' / 'FALSE' / '' / その他
+  }
+
+  function reqBadge(val) {
+    if (val === '送付依頼済') return '<span class="badge-req">📨 送付依頼済</span>';
+    if (val === '依頼不要')   return '<span class="badge-reqno">🚫 依頼不要</span>';
+    return '<span class="badge-noreq">📭 未依頼</span>';
   }
 
   // ========== ローディング ==========
@@ -422,7 +422,7 @@
             device   : String(d.device   || ''),
             item     : String(d.item     || ''),
             status   : String(d.status   || '未回収'),
-            req      : normalizeReq(d.req),
+            req      : normalizeReq(d.req),   // ← 必ず正規化
             note     : String(d.note     || '')
           };
         });
@@ -552,29 +552,37 @@
 
   // ========== 集計 ==========
   function calcTotals() {
-    var done=0, noNeed=0, notYet=0, reqCount=0, reqNoCount=0, noreqCount=0;
+    var done=0, noNeed=0, notYet=0, reqCount=0;
     items.forEach(function(d) {
-      if (d.status === '回収済')   done++;
+      if (d.status === '回収済')    done++;
       else if (d.status === '回収不要') noNeed++;
       else notYet++;
-      if (d.req === 'req')   reqCount++;
-      else if (d.req === 'reqno') reqNoCount++;
-      else noreqCount++;
+      if (d.req === '送付依頼済') reqCount++;
     });
-    var total = done + noNeed + notYet;
+    var total    = done + noNeed + notYet;
+    var rateBase = done + notYet; // 回収不要を除いた分母
+    var rate     = rateBase > 0 ? Math.round(done / rateBase * 100) : 0;
 
-    // ===== 回収率：回収不要を除いた計算 =====
-    // 分母：回収済 + 未回収（回収不要を除く）
-    var rateBase = done + notYet;
-    var rate = rateBase > 0 ? Math.round(done / rateBase * 100) : 0;
-
-    // サプライヤ数
-    var totalSuppliers = new Set(items.map(function(i){ return i.supplier; }).filter(function(s){ return s; })).size;
-    var reqSuppliers   = new Set(items.filter(function(i){ return i.req === 'req'; }).map(function(i){ return i.supplier; }).filter(function(s){ return s; })).size;
+    // ===== サプライヤ数：全アイテムが回収不要のサプライヤを除外 =====
+    // サプライヤごとに「回収不要以外のアイテムが1件以上あるか」判定
+    var supMap = {};
+    items.forEach(function(d) {
+      if (!d.supplier) return;
+      if (!supMap[d.supplier]) supMap[d.supplier] = { hasActive: false, hasReq: false };
+      if (d.status !== '回収不要') supMap[d.supplier].hasActive = true;
+      if (d.req === '送付依頼済')  supMap[d.supplier].hasReq    = true;
+    });
+    var totalSuppliers = 0, reqSuppliers = 0;
+    Object.values(supMap).forEach(function(s) {
+      if (s.hasActive) {
+        totalSuppliers++;
+        if (s.hasReq) reqSuppliers++;
+      }
+    });
 
     return {
       done:done, noNeed:noNeed, notYet:notYet, total:total,
-      reqCount:reqCount, reqNoCount:reqNoCount, noreqCount:noreqCount,
+      reqCount:reqCount,
       rate:rate, rateBase:rateBase,
       totalSuppliers:totalSuppliers, reqSuppliers:reqSuppliers
     };
@@ -583,7 +591,7 @@
   function calcSupplierTotals() {
     var map = {};
     items.forEach(function(d) {
-      if (!map[d.supplier]) map[d.supplier] = {supplier:d.supplier, done:0, noNeed:0, notYet:0};
+      if (!map[d.supplier]) map[d.supplier] = { supplier:d.supplier, done:0, noNeed:0, notYet:0 };
       if (d.status === '回収済')    map[d.supplier].done++;
       else if (d.status === '回収不要') map[d.supplier].noNeed++;
       else map[d.supplier].notYet++;
@@ -613,7 +621,6 @@
       + '</div>';
   }
 
-  // ===== 回収率カード：回収不要を除いた計算 =====
   function kpiCardRate(rate, done, notYet, rateBase) {
     return '<div class="card kpi-card" style="border-left:4px solid #2196f3;">'
       + '<p style="font-size:11px;color:#888;margin:0 0 2px;">📊 回収率</p>'
@@ -624,7 +631,6 @@
       + '</div>';
   }
 
-  // ===== 送付依頼済カード =====
   function kpiCardReq(reqCount, total, reqSuppliers, totalSuppliers) {
     var pct = total > 0 ? (reqCount / total * 100).toFixed(1) : 0;
     return '<div class="card kpi-card" style="border-left:4px solid #1565c0;">'
@@ -675,7 +681,7 @@
         {label:'未回収',   data:cY, backgroundColor:'#f44336'}
       ]},
       options: Object.assign({}, chartDefaults, {
-        scales: { x:{stacked:true, ticks:{font:{size:10}}}, y:{stacked:true, beginAtZero:true, ticks:{font:{size:10}}} },
+        scales: { x:{stacked:true,ticks:{font:{size:10}}}, y:{stacked:true,beginAtZero:true,ticks:{font:{size:10}}} },
         plugins: { legend:{position:'bottom',labels:{font:{size:10},padding:8,boxWidth:12}}, datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:function(v){return v>0?v:'';}} }
       })
     });
@@ -735,7 +741,7 @@
       var gDone   = gItems.filter(function(d){ return d.status==='回収済'; }).length;
       var gNoNeed = gItems.filter(function(d){ return d.status==='回収不要'; }).length;
       var gNotYet = gItems.filter(function(d){ return d.status==='未回収'; }).length;
-      var gReq    = gItems.filter(function(d){ return d.req==='req'; }).length;
+      var gReq    = gItems.filter(function(d){ return d.req==='送付依頼済'; }).length;
       var gTotal  = gItems.length;
       var gRateBase = gDone + gNotYet;
       var gRate   = gRateBase > 0 ? Math.round(gDone / gRateBase * 100) : 0;
@@ -780,16 +786,16 @@
           '<td></td>'+
           '<td>'+
             '<select class="status-select" '+(locked?'disabled title="編集ロック中"':'')+' onchange="changeStatus('+origIdx+',this.value)">'+
-              '<option value="未回収"'+(d.status==='未回収'?' selected':'')+'>❌ 未回収</option>'+
-              '<option value="回収済"'+(d.status==='回収済'?' selected':'')+'>✅ 回収済</option>'+
+              '<option value="未回収"'  +(d.status==='未回収'  ?' selected':'')+'>❌ 未回収</option>'+
+              '<option value="回収済"'  +(d.status==='回収済'  ?' selected':'')+'>✅ 回収済</option>'+
               '<option value="回収不要"'+(d.status==='回収不要'?' selected':'')+'>⬜ 回収不要</option>'+
             '</select>'+
           '</td>'+
           '<td>'+
             '<select class="status-select" '+(locked?'disabled title="編集ロック中"':'')+' onchange="changeReq('+origIdx+',this.value)">'+
-              '<option value="noreq"'+(d.req==='noreq'?' selected':'')+'>📭 未依頼</option>'+
-              '<option value="req"'  +(d.req==='req'  ?' selected':'')+'>📨 送付依頼済</option>'+
-              '<option value="reqno"'+(d.req==='reqno'?' selected':'')+'>🚫 依頼不要</option>'+
+              '<option value="未依頼"'   +(d.req==='未依頼'   ?' selected':'')+'>📭 未依頼</option>'+
+              '<option value="送付依頼済"'+(d.req==='送付依頼済'?' selected':'')+'>📨 送付依頼済</option>'+
+              '<option value="依頼不要"' +(d.req==='依頼不要' ?' selected':'')+'>🚫 依頼不要</option>'+
             '</select>'+
           '</td>'+
           '<td style="white-space:nowrap;">'+
@@ -818,7 +824,6 @@
     });
   }
 
-  // ===== 送付依頼セレクトボックス変更 =====
   function changeReq(idx, val) {
     if (!isEditUnlocked) { openPwModal(); return; }
     var prev = items[idx].req;
@@ -846,7 +851,7 @@
     document.getElementById('iDevice').value = '';
     document.getElementById('iItem').value = '';
     document.querySelector('input[name="iStatus"][value="未回収"]').checked = true;
-    document.querySelector('input[name="iReq"][value="noreq"]').checked = true;
+    document.querySelector('input[name="iReq"][value="未依頼"]').checked = true;
     document.getElementById('iNote').value = '';
     document.getElementById('itemModalError').style.display = 'none';
     document.getElementById('itemModal').classList.add('active');
@@ -861,7 +866,7 @@
     document.getElementById('iDevice').value = d.device || '';
     document.getElementById('iItem').value = d.item;
     document.querySelector('input[name="iStatus"][value="'+d.status+'"]').checked = true;
-    document.querySelector('input[name="iReq"][value="'+normalizeReq(d.req)+'"]').checked = true;
+    document.querySelector('input[name="iReq"][value="'+d.req+'"]').checked = true;
     document.getElementById('iNote').value = d.note || '';
     document.getElementById('itemModalError').style.display = 'none';
     document.getElementById('itemModal').classList.add('active');
@@ -917,8 +922,7 @@
   function exportCSV() {
     var rows = [['サプライヤ名','区分','機器名称','アイテム名','ステータス','送付依頼','備考']];
     items.forEach(function(d) {
-      var reqStr = d.req==='req' ? '送付依頼済' : d.req==='reqno' ? '依頼不要' : '未依頼';
-      rows.push([d.supplier, d.cat, d.device||'', d.item, d.status, reqStr, d.note||'']);
+      rows.push([d.supplier, d.cat, d.device||'', d.item, d.status, d.req, d.note||'']);
     });
     var csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
     var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
@@ -943,7 +947,7 @@
     var a    = document.createElement('a');
     a.href   = url;
     a.download = '写真回収状況_テンプレート.csv';
-    a.click(); URL.revokeObjectURL(url);
+    a.click(); URL.revokeObjectOffset(url);
   }
 
   // ========== インポートモーダル ==========
@@ -1054,10 +1058,7 @@
       var st   = String(iSt   >= 0 ? r[iSt]   : '未回収').trim();
       var reqV = String(iReq  >= 0 ? r[iReq]  : '').trim();
       var note = String(iNote >= 0 ? r[iNote] : '').trim();
-
-      // ===== 送付依頼の3値変換 =====
-      var req = normalizeReq(reqV);
-
+      var req  = normalizeReq(reqV); // ← 日本語3値に正規化
       var err = [];
       if (!sup) err.push('サプライヤ名なし');
       if (!itm) err.push('アイテム名なし');
@@ -1072,11 +1073,11 @@
     var tbl = document.getElementById('previewTable');
     tbl.innerHTML = '<tr><th>サプライヤ</th><th>区分</th><th>機器名称</th><th>アイテム名</th><th>ステータス</th><th>送付依頼</th><th>状態</th></tr>';
     valid.slice(0,5).forEach(function(r) {
-      var reqStr = r.req==='req' ? '📨 依頼済' : r.req==='reqno' ? '🚫 依頼不要' : '📭 未依頼';
+      var reqStr = r.req==='送付依頼済' ? '📨 依頼済' : r.req==='依頼不要' ? '🚫 依頼不要' : '📭 未依頼';
       tbl.innerHTML += '<tr><td>'+escHtml(r.supplier)+'</td><td>'+escHtml(r.cat)+'</td><td>'+escHtml(r.device)+'</td><td>'+escHtml(r.item)+'</td><td>'+escHtml(r.status)+'</td><td>'+reqStr+'</td><td><span class="badge-ok">✅ OK</span></td></tr>';
     });
     errors.slice(0, Math.max(0, 5-valid.length)).forEach(function(r) {
-      var reqStr = r.req==='req' ? '📨 依頼済' : r.req==='reqno' ? '🚫 依頼不要' : '📭 未依頼';
+      var reqStr = r.req==='送付依頼済' ? '📨 依頼済' : r.req==='依頼不要' ? '🚫 依頼不要' : '📭 未依頼';
       tbl.innerHTML += '<tr><td>'+escHtml(r.supplier)+'</td><td>'+escHtml(r.cat)+'</td><td>'+escHtml(r.device)+'</td><td>'+escHtml(r.item)+'</td><td>'+escHtml(r.status)+'</td><td>'+reqStr+'</td><td><span class="badge-err">⚠ '+r.error+'</span></td></tr>';
     });
 
@@ -1116,9 +1117,9 @@
   ['itemModal','deleteModal','importModal'].forEach(function(id) {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target !== this) return;
-      if (id==='itemModal')    closeItemModal();
+      if (id==='itemModal')        closeItemModal();
       else if (id==='deleteModal') closeDeleteModal();
-      else closeImportModal();
+      else                         closeImportModal();
     });
   });
   document.getElementById('pwModal').addEventListener('click', function(e){
